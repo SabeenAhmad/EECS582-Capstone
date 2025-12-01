@@ -1,4 +1,22 @@
 // src/data/parkingEvents.ts
+/**
+ * parkingEvents.ts
+ * -----------------
+ * This file defines the structure and mock dataset for all parking-related events
+ * displayed in the app’s event banner and calendar views.
+ * Each event describes how campus activities impact parking availability.
+ *
+ * FIELD DESCRIPTIONS:
+ * - id: Unique identifier for the event.
+ * - title: Human-readable name of the event.
+ * - type: Category of event (Football, Basketball, or Campus Event).
+ * - date: The event date in YYYY-MM-DD format.
+ * - time: When the event occurs (single time or time range).
+ * - venue: Primary location of the event.
+ * - lotsAffected: List of parking lots expected to experience increased usage.
+ * - impactLevel: Severity of expected parking impact (Low, Medium, High).
+ * - notes: Optional details or warnings specific to the event.
+ */
 
 export type ParkingEventType = 'Football' | 'Basketball' | 'Campus Event';
 

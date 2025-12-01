@@ -1,3 +1,7 @@
+/** 
+ * Imports core React features, navigation, and React Native components.
+ * Also loads mock parking lot data and gets device screen dimensions.
+ */
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import {
@@ -13,15 +17,25 @@ import {
 import lots from '../data/mockParking';
 const { width, height } = Dimensions.get('window');
 
+/**
+ * Declare MapView and Marker placeholders, which will only be assigned
+ * on native platforms (iOS/Android). For web, Leaflet is used instead.
+ */
 let MapView, Marker; // for native maps
 
+/** 
+ * Load React Native Maps only if NOT on web, since web uses Leaflet.
+ */
 if (Platform.OS !== 'web') {
   const Maps = require('react-native-maps');
   MapView = Maps.default;
   Marker = Maps.Marker;
 }
 
-// Helper: get most recent datapoint for each lot
+/**
+ * Helper function that extracts the most recent data point from a lot,
+ * computes available/occupied counts, and returns the values.
+ */
 function getLatestAvailability(lot) {
   const latest = lot.dataPoints[lot.dataPoints.length - 1];
   const available = lot.total - latest.occupied;
@@ -33,11 +47,22 @@ function getLatestAvailability(lot) {
   };
 }
 
+/**
+ * Main component: HomeScreen
+ * Contains:
+ *  - Search bar with suggestions
+ *  - Web version using Leaflet
+ *  - Native version using React Native Maps
+ */
 export default function HomeScreen() {
+  /** State variables for search bar and Leaflet loading */
   const [search, setSearch] = useState('');
   const [LeafletReady, setLeafletReady] = useState(false);
   const [LeafletModules, setLeafletModules] = useState(null);
+
   const router = useRouter();
+
+  /** Default region for the map (Lawrence, KS area) */
   const region = {
     latitude: 38.9543,
     longitude: -95.2558,
@@ -45,20 +70,32 @@ export default function HomeScreen() {
     longitudeDelta: 0.02,
   };
 
+  /**
+   * Filters the parking lots based on what the user types.
+   * Matches beginning of lot names (case-insensitive).
+   */
   const filteredLots = lots.filter((lot) =>
     lot.name.toLowerCase().startsWith(search.trim().toLowerCase())
   );
 
+  /**
+   * Handles selection of a lot from the suggestions:
+   * - Sets the search bar to the lot name
+   * - Navigates to the Stats Page
+   */
   const onSelectLot = (lot) => {
-    // set search to the selected lot and navigate to its stats page
     setSearch(lot.name);
     router.push(`/StatsPage?lot=${encodeURIComponent(lot.name)}`);
   };
 
+  /**
+   * Renders suggestion dropdown below the search bar.
+   * Shows matching lots and availability summary.
+   */
   const renderSuggestions = () => {
-    if (!search.trim()) return null; // if nothing is typed, don't show suggestions
+    if (!search.trim()) return null; // nothing typed → no suggestions
 
-    if (filteredLots.length === 0) { // if there are no matching lots
+    if (filteredLots.length === 0) {
       return (
         <View style={styles.suggestions}>
           <Text style={styles.noResults}>No lots found</Text>
@@ -73,14 +110,17 @@ export default function HomeScreen() {
           return (
             <TouchableOpacity key={lot.id} style={styles.suggestionItem} onPress={() => onSelectLot(lot)}> 
               <Text style={styles.suggestionText}>{lot.name} — {available}/{lot.total}</Text>
-            </TouchableOpacity> // makes each suggestion clickable; TouchableOpacity lowers the opacity of the item (lot) when pressed
+            </TouchableOpacity>
           );
         })}
       </View>
     );
   };
 
-  // 🌐 Load Leaflet dynamically for web
+  /**
+   * Dynamically loads Leaflet only on web.
+   * React Native Maps is used on native devices instead.
+   */
   useEffect(() => {
     if (Platform.OS === 'web') {
       (async () => {
@@ -93,7 +133,10 @@ export default function HomeScreen() {
     }
   }, []);
 
-  // ✅ WEB VERSION (Leaflet)
+  /**
+   * WEB VERSION — Uses Leaflet map inside a MapContainer.
+   * Shows lot markers as CircleMarkers with Popups.
+   */
   if (Platform.OS === 'web') {
     if (!LeafletReady || !LeafletModules) {
       return (
@@ -154,7 +197,6 @@ export default function HomeScreen() {
   </div>
 </Popup>
 
-
                 </CircleMarker>
               );
             })}
@@ -169,13 +211,16 @@ export default function HomeScreen() {
             value={search}
             onChangeText={setSearch}
           />
-          {renderSuggestions()} {/* Show suggestions below search if they are available */}
+          {renderSuggestions()} 
         </View>
       </View>
     );
   }
 
-  // 📱 NATIVE VERSION (React Native Maps)
+  /**
+   * NATIVE VERSION — Uses React Native Maps and Marker components.
+   * Shows clickable markers that display availability info.
+   */
   return (
     <View style={styles.container}>
       <MapView style={styles.map} initialRegion={region}>
@@ -216,6 +261,9 @@ export default function HomeScreen() {
   );
 }
 
+/** 
+ * Styles for layout, search bar, suggestion list, and text.
+ */
 const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { width, height },

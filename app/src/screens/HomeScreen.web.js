@@ -1,3 +1,7 @@
+/**
+ * Imports React, state hooks, navigation, parking event data,
+ * UI components, icons, fonts, mock lot data, Leaflet CSS, and theme context.
+ */
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { parkingEvents } from "../data/parkingEvents";
@@ -20,6 +24,10 @@ import { useTheme } from '../../app/context/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
+/**
+ * Converts 24-hour time (e.g., "17:34") into a readable 12-hour format (5:34 PM).
+ * Used throughout the app for displaying last-updated timestamps.
+ */
 function convertTo12Hour(time24) {
   const [hourStr, minute] = time24.split(":");
   let hour = parseInt(hourStr, 10);
@@ -31,7 +39,12 @@ function convertTo12Hour(time24) {
   return `${hour}:${minute} ${ampm}`;
 }
 
-
+/**
+ * Returns availability info for a parking lot:
+ * - latest datapoint (most recent occupancy update)
+ * - available spots
+ * - formatted last updated timestamp
+ */
 function getLatestAvailability(lot) {
   const latest = lot.dataPoints[lot.dataPoints.length - 1];
   const available = lot.total - latest.occupied;
@@ -43,61 +56,92 @@ function getLatestAvailability(lot) {
 }
 
 export default function HomeScreen() {
+  /** Search bar input */
   const [search, setSearch] = useState('');
+
+  /** Leaflet dynamic-loading state (web map library) */
   const [LeafletReady, setLeafletReady] = useState(false);
   const [LeafletModules, setLeafletModules] = useState(null);
+
+  /** Feedback modal state */
   const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
   const [rating, setRating] = useState(0);
+
+  /** Special event banner message */
   const [specialEventMessage, setSpecialEventMessage] = useState('');
 
   const router = useRouter();
   const { theme, toggleTheme, colors } = useTheme();
 
+  /**
+   * Load Google Inter fonts before rendering to avoid layout shifting.
+   */
   const [fontsLoaded] = useFonts({
     Inter_600SemiBold,
     Inter_400Regular,
   });
 
+  /** Default map center (Lawrence, KS) */
   const region = {
     latitude: 38.9543,
     longitude: -95.2558,
   };
 
+  /**
+   * Filters lots based on search input (case-insensitive).
+   * Uses startsWith to match from the beginning of the lot name.
+   */
   const filteredLots = lots.filter((lot) =>
     lot.name.toLowerCase().startsWith(search.trim().toLowerCase())
   );
 
+  /**
+   * Handles selecting a lot from suggestions:
+   * - Fills search bar
+   * - Navigates to StatsPage for that lot
+   */
   const onSelectLot = (lot) => {
     setSearch(lot.name);
     router.push(`/StatsPage?lot=${encodeURIComponent(lot.name)}`);
   };
 
+  /**
+   * Saves user feedback in console and resets modal form.
+   */
   const saveFeedback = () => {
     if (!feedbackText.trim() && rating === 0) {
       Alert.alert('Please provide a rating or feedback');
       return;
     }
+
     const feedback = {
       message: feedbackText,
       rating: rating,
       timestamp: new Date().toISOString(),
     };
+
     console.log('Feedback submitted:', feedback);
     Alert.alert('Thank you!', 'Your feedback has been submitted.');
+
     setFeedbackVisible(false);
     setFeedbackText('');
     setRating(0);
   };
 
-  // SEARCH BAR COLORS
+  /**
+   * Search bar color logic for dark/light mode.
+   */
   const searchBackground = theme === 'dark' ? '#f5f5f5' : '#111111';
   const searchBorderColor = theme === 'dark' ? '#dddddd' : '#444444';
   const searchTextColor = theme === 'dark' ? '#111111' : '#f5f5f5';
   const searchPlaceholderColor = theme === 'dark' ? '#666666' : '#bbbbbb';
 
+  /**
+   * Renders search suggestions dropdown dynamically based on input.
+   */
   const renderSuggestions = () => {
-    if (!search.trim()) return null;
+    if (!search.trim()) return null; // no text = no suggestions
 
     if (filteredLots.length === 0) {
       return (
@@ -129,7 +173,10 @@ export default function HomeScreen() {
     );
   };
 
-  // SPECIAL EVENT BANNER
+  /**
+   * Builds the "special event" banner based on today's date.
+   * Pulls events from parkingEvents file.
+   */
   useEffect(() => {
     const today = new Date().toLocaleDateString("en-CA");
     const todayEvents = parkingEvents.filter(e => e.date === today);
@@ -152,7 +199,10 @@ export default function HomeScreen() {
     setSpecialEventMessage(builtMessage);
   }, []);
 
-  // Load Leaflet dynamically
+  /**
+   * Dynamically loads Leaflet map library at runtime.
+   * (Prevents bundling Leaflet in native versions.)
+   */
   useEffect(() => {
     (async () => {
       const leaflet = await import('leaflet');
@@ -162,6 +212,9 @@ export default function HomeScreen() {
     })();
   }, []);
 
+  /**
+   * Loading state: wait for Leaflet + fonts to fully load.
+   */
   if (!LeafletReady || !LeafletModules || !fontsLoaded) {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
@@ -170,8 +223,13 @@ export default function HomeScreen() {
     );
   }
 
+  /** Extract Leaflet components */
   const { MapContainer, TileLayer, CircleMarker, Popup } = LeafletModules;
 
+  /**
+   * Theme-aware tile layer URLs.
+   * Uses CARTO dark map tiles in dark mode for cleaner UI.
+   */
   const tileUrl =
     theme === 'dark'
       ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
@@ -183,7 +241,7 @@ export default function HomeScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
 
-      {/* SPECIAL EVENT BANNER */}
+      {/** SPECIAL EVENT BANNER SECTION */}
       {specialEventMessage !== "" && (
         <View style={[styles.banner, { backgroundColor: colors.bannerBackground }]}>
           <Text style={[styles.bannerText, { color: colors.bannerText }]}>
@@ -192,7 +250,7 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* MAP SECTION */}
+      {/** MAP SECTION */}
       <View style={{ flex: 1 }}>
         <MapContainer
           center={[region.latitude, region.longitude]}
@@ -200,9 +258,11 @@ export default function HomeScreen() {
           style={{ height: height, width: width }}
         >
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
+            attribution='&copy; OpenStreetMap & CARTO'
             url={tileUrl}
           />
+
+          {/** Parking lot markers */}
           {filteredLots.map((lot) => {
             const { available, lastUpdated } = getLatestAvailability(lot);
 
@@ -232,9 +292,11 @@ export default function HomeScreen() {
                     >
                       {lot.name}
                     </div>
+
                     <div style={{ fontSize: 14, color: popupMainColor }}>
                       {available}/{lot.total} spots available
                     </div>
+
                     <div style={{ fontSize: 12, color: popupSubColor, marginTop: 2 }}>
                       Last updated: {lastUpdated}
                     </div>
@@ -246,7 +308,7 @@ export default function HomeScreen() {
         </MapContainer>
       </View>
 
-      {/* THEME TOGGLE BUTTON */}
+      {/** THEME TOGGLE (Light/Dark mode) */}
       <TouchableOpacity
         style={[
           styles.themeToggleButton,
@@ -261,7 +323,7 @@ export default function HomeScreen() {
         />
       </TouchableOpacity>
 
-      {/* Calendar Button */}
+      {/** CALENDAR NAVIGATION BUTTON */}
       <TouchableOpacity
         style={[styles.calendarButton, { backgroundColor: colors.buttonBackground }]}
         onPress={() => router.push('/calendar')}
@@ -269,7 +331,7 @@ export default function HomeScreen() {
         <Feather name="calendar" size={24} color={colors.buttonText} />
       </TouchableOpacity>
 
-      {/* Feedback Button */}
+      {/** FEEDBACK MODAL BUTTON */}
       <TouchableOpacity
         style={[
           styles.feedbackButton,
@@ -284,7 +346,7 @@ export default function HomeScreen() {
         />
       </TouchableOpacity>
 
-      {/* SEARCH */}
+      {/** SEARCH BAR + SUGGESTIONS */}
       <View
         style={[
           styles.searchContainer,
@@ -301,6 +363,7 @@ export default function HomeScreen() {
             color={searchPlaceholderColor}
             style={{ marginHorizontal: 10 }}
           />
+
           <TextInput
             style={[
               styles.searchInput,
@@ -312,10 +375,11 @@ export default function HomeScreen() {
             onChangeText={setSearch}
           />
         </View>
+
         {renderSuggestions()}
       </View>
 
-      {/* FEEDBACK MODAL */}
+      {/** FEEDBACK MODAL */}
       <Modal
         visible={feedbackVisible}
         transparent={true}
@@ -329,6 +393,8 @@ export default function HomeScreen() {
               { backgroundColor: colors.modalBackground },
             ]}
           >
+
+            {/** FEEDBACK MODAL TITLE */}
             <Text
               style={[
                 styles.modalTitle,
@@ -338,6 +404,7 @@ export default function HomeScreen() {
               Send Feedback
             </Text>
 
+            {/** RATING STARS */}
             <View style={styles.ratingContainer}>
               <Text
                 style={[
@@ -347,6 +414,7 @@ export default function HomeScreen() {
               >
                 Rate your experience:
               </Text>
+
               <View style={styles.starsContainer}>
                 {[1, 2, 3, 4, 5].map((star) => (
                   <TouchableOpacity
@@ -368,6 +436,7 @@ export default function HomeScreen() {
               </View>
             </View>
 
+            {/** FEEDBACK TEXT INPUT */}
             <TextInput
               style={[
                 styles.feedbackInput,
@@ -385,6 +454,7 @@ export default function HomeScreen() {
               numberOfLines={4}
             />
 
+            {/** BUTTON ROW (Cancel + Submit) */}
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[
@@ -409,6 +479,7 @@ export default function HomeScreen() {
                   Cancel
                 </Text>
               </TouchableOpacity>
+
               <TouchableOpacity
                 style={[
                   styles.submitButton,
@@ -430,13 +501,19 @@ export default function HomeScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+
           </View>
         </View>
       </Modal>
+
     </View>
   );
 }
 
+/** 
+ * Stylesheet: layout, buttons, modals, search bar, banner, etc.
+ * No changes were made to your styles.
+ */
 const styles = StyleSheet.create({
   container: {
     flex: 1,

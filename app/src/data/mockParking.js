@@ -1,4 +1,25 @@
 // src/data/mockParking.js
+
+/**
+ * mockParking.js
+ *
+ * This file contains mock parking lot data used throughout the app to simulate
+ * real-time occupancy trends and provide map + stats functionality. Each lot
+ * includes static properties (name, permit type, coordinates) and a timeline
+ * of occupancy readings collected throughout the day.
+ *
+ * FIELD DESCRIPTIONS:
+ * - id: Unique identifier for the parking lot.
+ * - name: Display name of the lot as it appears on the map and in search.
+ * - total: Total number of parking spaces available in the lot.
+ * - latitude / longitude: Exact coordinates used to place the lot marker on the map.
+ * - permit: The permit color/category required to park in that lot.
+ * - dataPoints: Array of time-based occupancy snapshots.
+ *      • time: The timestamp of the observation (24-hour format).
+ *      • occupied: Number of cars parked at that time (used to calculate availability).
+ */
+
+
 export default [
   {
     id: 1,
