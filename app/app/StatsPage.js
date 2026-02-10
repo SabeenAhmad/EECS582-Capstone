@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /**
  * StatsPage
  *
@@ -9,6 +10,8 @@
  *
  * Data is dynamically themed based on light/dark mode.
  */
+=======
+>>>>>>> f7e9bd37e3cc75168c499bc51d82667739b388e1
 
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
@@ -63,6 +66,15 @@ export default function StatsPage() {
   const occupied = latest.occupied;
   const percentFull = (occupied / lotData.total) * 100;
   const permitType = lotData.permit;
+  const getHourlyData = () => {
+    const data = new Array(24).fill(0);
+    lotData.dataPoints.forEach((point) => {
+      const hour = parseInt(point.time.split(':')[0], 10);
+      const occupancyRate = (point.occupied / lotData.total) * 100;
+      data[hour] = occupancyRate;
+    });
+    return data;
+  };
 
   // ------------------------------------------
   // Convert raw datapoints → hourly occupancy array
@@ -135,10 +147,17 @@ export default function StatsPage() {
         </Text>
       </View>
 
+<<<<<<< HEAD
       {/* Lot Title */}
       <Text style={[styles.title, { color: colors.text }]}>
         {lotData.name}
       </Text>
+=======
+        {/* Title */}
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>{lotData.name}</Text>
+        </View>
+>>>>>>> f7e9bd37e3cc75168c499bc51d82667739b388e1
 
       {/* Occupancy Progress Bar */}
       <View
