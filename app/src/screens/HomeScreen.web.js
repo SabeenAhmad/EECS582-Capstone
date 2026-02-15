@@ -5,8 +5,9 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { parkingEvents } from "../data/parkingEvents";
-
+import { useParkingLots } from '../firebase/hooks'; // adjust path if needed
 import {
+  ActivityIndicator,
   View,
   TextInput,
   StyleSheet,
@@ -58,6 +59,7 @@ function getLatestAvailability(lot) {
 export default function HomeScreen() {
   /** Search bar input */
   const [search, setSearch] = useState('');
+  const { lots, loading, error } = useParkingLots();//Req 28: call custom parking hook
 
   /** Leaflet dynamic-loading state (web map library) */
   const [LeafletReady, setLeafletReady] = useState(false);
@@ -212,9 +214,35 @@ export default function HomeScreen() {
     })();
   }, []);
 
-  /**
-   * Loading state: wait for Leaflet + fonts to fully load.
-   */
+  // --------------------------------------------------
+// Requirement 28 — Loading Indicator While Fetching Data
+// --------------------------------------------------
+
+// NEW: Show loading screen while parking lot data is being fetched
+// This prevents the UI from rendering before data is ready
+// and satisfies requirement that a loading indicator appears during fetch
+// NEW (Req 28): show loading indicator during data fetch
+if (loading) { // NEW: check loading state from hook
+  return ( // NEW: stop normal render while loading
+    <View // NEW: wrapper container for loading screen
+      style={[ // NEW: apply combined styles
+        styles.container, // NEW: base layout style
+        styles.centered, // NEW: center content vertically + horizontally
+        { backgroundColor: colors.background } // NEW: theme-aware background
+      ]}
+    >
+      <ActivityIndicator // NEW: spinning loader UI element
+        size="large" // NEW: large spinner size
+      />
+
+      <Text // NEW: loading message text
+        style={{ marginTop: 10, color: colors.text }} // NEW: spacing + theme text color
+      >
+        Loading parking data… {/* NEW: user feedback message */}
+      </Text>
+    </View>
+  );
+}
   if (!LeafletReady || !LeafletModules || !fontsLoaded) {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>

@@ -13,8 +13,10 @@ import {
   Platform,
   Text,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
-import lots from '../data/mockParking';
+
+import mockLots from '../data/mockParking';
 const { width, height } = Dimensions.get('window');
 
 /**
@@ -59,7 +61,9 @@ export default function HomeScreen() {
   const [search, setSearch] = useState('');
   const [LeafletReady, setLeafletReady] = useState(false);
   const [LeafletModules, setLeafletModules] = useState(null);
-
+  const [lotsData, setLotsData] = useState([]);      // what you render
+  const [loadingLots, setLoadingLots] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const router = useRouter();
 
   /** Default region for the map (Lawrence, KS area) */
@@ -74,8 +78,8 @@ export default function HomeScreen() {
    * Filters the parking lots based on what the user types.
    * Matches beginning of lot names (case-insensitive).
    */
-  const filteredLots = lots.filter((lot) =>
-    lot.name.toLowerCase().startsWith(search.trim().toLowerCase())
+  const filteredLots = lotsData.filter((lot) =>
+  lot.name.toLowerCase().startsWith(search.trim().toLowerCase())
   );
 
   /**
@@ -122,16 +126,26 @@ export default function HomeScreen() {
    * React Native Maps is used on native devices instead.
    */
   useEffect(() => {
-    if (Platform.OS === 'web') {
-      (async () => {
-        const leaflet = await import('leaflet');
-        const reactLeaflet = await import('react-leaflet');
-        require('leaflet/dist/leaflet.css');
-        setLeafletModules({ ...reactLeaflet, L: leaflet });
-        setLeafletReady(true);
-      })();
+  let alive = true;
+
+  const fetchOccupancy = async () => {
+    try {
+      setLoadingLots(true);
+      setLoadError(null);
+
+      await new Promise((r) => setTimeout(r, 800));
+
+      if (alive) setLotsData(mockLots);
+    } catch (e) {
+      if (alive) setLoadError('Could not load occupancy data.');
+    } finally {
+      if (alive) setLoadingLots(false);
     }
-  }, []);
+  };
+
+  fetchOccupancy();
+  return () => { alive = false; };
+}, []);
 
   /**
    * WEB VERSION — Uses Leaflet map inside a MapContainer.
@@ -216,7 +230,33 @@ export default function HomeScreen() {
       </View>
     );
   }
+  if (loadingLots) {
+  return (
+    <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+      <ActivityIndicator size="large" />
+      <Text style={{ marginTop: 10 }}>Loading occupancy...</Text>
+    </View>
+  );
+}
 
+if (loadError) {
+  return (
+    <View style={[styles.container, { justifyContent: "center", alignItems: "center", padding: 20 }]}>
+      <Text style={{ textAlign: "center", marginBottom: 12 }}>{loadError}</Text>
+      <TouchableOpacity
+        style={{ paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, backgroundColor: "#222" }}
+        onPress={() => {
+          setLoadError(null);
+          setLoadingLots(true);
+          setLotsData(mockLots);       // optional reset
+          setLoadingLots(false);  // triggers rerender, but you’ll want a real refetch fn if you prefer
+        }}
+      >
+        <Text style={{ color: "#fff" }}>Retry</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
   /**
    * NATIVE VERSION — Uses React Native Maps and Marker components.
    * Shows clickable markers that display availability info.
