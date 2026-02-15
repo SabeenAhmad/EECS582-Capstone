@@ -346,6 +346,21 @@ export default function HomeScreen() {
         />
       </TouchableOpacity>
 
+      {/** CHATBOT BUTTON */}
+      <TouchableOpacity
+        style={[
+          styles.chatbotButton,
+          { backgroundColor: colors.buttonBackground },
+        ]}
+        onPress={() => router.push('/chatbot')}
+      >
+        <Feather
+          name="message-square"
+          size={24}
+          color={colors.buttonText}
+        />
+      </TouchableOpacity>
+
       {/** SEARCH BAR + SUGGESTIONS */}
       <View
         style={[
@@ -560,6 +575,23 @@ const styles = StyleSheet.create({
   feedbackButton: {
     position: 'absolute',
     top: 90,
+    right: 20,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 5,
+    zIndex: 21,
+  },
+
+  chatbotButton: {
+    position: 'absolute',
+    top: 150,
     right: 20,
     width: 52,
     height: 52,
