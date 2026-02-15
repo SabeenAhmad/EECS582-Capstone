@@ -1,3 +1,45 @@
+/**
+ * ChatBot Component
+ * 
+ * Description: A React Native chatbot interface that provides parking assistance
+ * for KU campus. Integrates with OpenAI API to answer parking-related questions
+ * using real-time and historical parking data.
+ * 
+ * Programmer: Tanusakaray
+ * Date Created: February 13, 2026
+ * Date Revised: February 15, 2026
+ * Revision Description: Initial implementation with OpenAI integration
+ * 
+ * Preconditions:
+ * - OpenAI API key must be configured
+ * - Parking data must be imported from mockParking
+ * - Expo router must be configured
+ * 
+ * Acceptable Input:
+ * - Text messages up to 500 characters
+ * - Questions about parking availability, lot locations, estimates
+ * 
+ * Postconditions:
+ * - Returns AI-generated responses about parking
+ * - Fallback responses if API fails
+ * - Updates message hitory state
+ * 
+ * Return Values:
+ * - JSX component rendering the chat interface
+ * 
+ * Error Conditions:
+ * - OpenAI API failures (handled with fallback responses)
+ * - Network connectivity issues
+ * - Invalid API responses
+ * 
+ * Side Effects:
+ * - Makes HTTP requests to OpenAI API
+ * - Updates component state (messages, loading)
+ * 
+ * Known Faults:
+ * - API key must be manually configured (not in environment variables)
+ */
+
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -13,9 +55,15 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from './context/ThemeContext';
 import lots from '../src/data/mockParking';   
 
+// OpenAI API key configuration - replace with actual key from https://platform.openai.com/api-keys
 const OPENAI_API_KEY = 'your-openai-api-key-here';
 
+/**
+ * Main ChatBot functional component
+ * Renders a chat interface for parking assistance with OpenAI integration
+ */
 export default function ChatBot() {
+  // State management for chat messages, input, and loading status
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -24,27 +72,37 @@ export default function ChatBot() {
       timestamp: new Date(),
     },
   ]);
-  const [inputText, setInputText] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const scrollViewRef = useRef();
-  const router = useRouter();
-  const { theme, colors } = useTheme();
+  const [inputText, setInputText] = useState(''); // Current user input
+  const [isLoading, setIsLoading] = useState(false); // API request loading state
+  const scrollViewRef = useRef(); // Reference for auto-scrolling chat
+  const router = useRouter(); // Expo router for navigation
+  const { theme, colors } = useTheme(); // Theme context for styling
 
+  /**
+   * Scrolls chat view to bottom when new messages are added
+   */
   const scrollToBottom = () => {
     scrollViewRef.current?.scrollToEnd({ animated: true });
   };
 
+  // Auto-scroll when messages change
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
+  /**
+   * Generates parking context data for AI prompt
+   * Returns current availability and historical patterns
+   */
   const generateParkingContext = () => {
+    // Current real-time availability data
     const currentData = lots.map(lot => {
       const latest = lot.dataPoints[lot.dataPoints.length - 1];
       const available = lot.total - latest.occupied;
       return `${lot.name}: ${available}/${lot.total} spots available (${lot.permit} permit required)`;
     }).join('\n');
     
+    // Historical patterns for time-based estimates
     const historicalPatterns = lots.map(lot => {
       const patterns = lot.dataPoints.map(dp => `${dp.time}: ${lot.total - dp.occupied} available`).join(', ');
       return `${lot.name} historical pattern: ${patterns}`;
@@ -53,9 +111,14 @@ export default function ChatBot() {
     return { currentData, historicalPatterns };
   };
 
+  /**
+   * Handles sending user messages and getting AI responses
+   * Includes fallback logic for API failures
+   */
   const sendMessage = async () => {
-    if (!inputText.trim()) return;
+    if (!inputText.trim()) return; // Prevent empty messages
 
+    // Add user message to chat
     const userMessage = {
       id: Date.now(),
       text: inputText,
@@ -65,12 +128,14 @@ export default function ChatBot() {
 
     setMessages(prev => [...prev, userMessage]);
     const currentInput = inputText;
-    setInputText('');
-    setIsLoading(true);
+    setInputText(''); // Clear input field
+    setIsLoading(true); // Show loading indicator
 
     try {
+      // Generate context data for AI prompt
       const { currentData, historicalPatterns } = generateParkingContext();
       
+      // Create AI prompt with parking data and guidelines
       const prompt = `You are a helpful parking assistant for KU campus. 
 
 CURRENT AVAILABILITY:
@@ -90,6 +155,7 @@ GUIDELINES:
 
 Provide a helpful, concise response.`;
 
+      // Make API request to OpenAI
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -107,12 +173,14 @@ Provide a helpful, concise response.`;
         }),
       });
 
+      // Handle API errors
       if (!response.ok) {
         const errorData = await response.json();
         console.error('OpenAI API Error:', response.status, errorData);
         throw new Error(`OpenAI API Error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
       }
 
+      // Process successful API response
       const data = await response.json();
       
       if (data.choices && data.choices[0]) {
@@ -127,21 +195,22 @@ Provide a helpful, concise response.`;
         throw new Error('Invalid response from OpenAI');
       }
     } catch (error) {
+      // Log error details for debugging
       console.error('Full error details:', error);
       console.error('Error message:', error.message);
       
-      // Log the response if it exists
       if (error.response) {
         console.error('Response status:', error.response.status);
         console.error('Response data:', error.response.data);
       }
       
-      // Smart fallback that can answer basic questions
+      // Fallback response system when AI fails
       let fallbackText = `I'm having trouble connecting to my AI service right now, but I can still help!\n\n`;
       
-      // Try to answer basic questions with parking data
+      // Parse user input for basic parking questions
       const lowerInput = currentInput.toLowerCase();
       
+      // Handle specific lot inquiries
       if (lowerInput.includes('allen') || lowerInput.includes('fieldhouse')) {
         const allen = lots.find(lot => lot.name.includes('Allen'));
         if (allen) {
@@ -157,6 +226,7 @@ Provide a helpful, concise response.`;
           fallbackText += `Mississippi Street Garage: ${available}/${garage.total} spots available (${garage.permit} permit required)`;
         }
       } else if (lowerInput.includes('most') || lowerInput.includes('best') || lowerInput.includes('available')) {
+        // Show lots with most availability
         const lotAvailability = lots.map(lot => {
           const latest = lot.dataPoints[lot.dataPoints.length - 1];
           const available = lot.total - latest.occupied;
@@ -167,11 +237,13 @@ Provide a helpful, concise response.`;
           `• ${lot.name}: ${lot.available}/${lot.total} spots (${lot.permit} permit)`
         ).join('\n')}`;
       } else {
+        // Default: show all current availability
         fallbackText += `Here's the current parking availability:\n\n${generateParkingContext().currentData}`;
       }
       
       fallbackText += `\n\nIs there a specific lot you'd like to know about?`;
       
+      // Add fallback response to chat
       const fallbackResponse = {
         id: Date.now() + 1,
         text: fallbackText,
@@ -180,16 +252,20 @@ Provide a helpful, concise response.`;
       };
       setMessages(prev => [...prev, fallbackResponse]);
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Hide loading indicator
     }
   };
 
+  /**
+   * Renders individual chat message bubbles
+   * Handles styling for bot vs user messages
+   */
   const renderMessage = (message) => (
     <View
       key={message.id}
       style={[
         styles.messageContainer,
-        message.isBot ? styles.botMessage : styles.userMessage,
+        message.isBot ? styles.botMessage : styles.userMessage, // Align left for bot, right for user
       ]}
     >
       <View
@@ -198,7 +274,7 @@ Provide a helpful, concise response.`;
           {
             backgroundColor: message.isBot 
               ? colors.modalBackground 
-              : colors.buttonBackground,
+              : colors.buttonBackground, // Different colors for bot vs user
           },
         ]}
       >
@@ -227,30 +303,31 @@ Provide a helpful, concise response.`;
     </View>
   );
 
+  // Main component render - chat interface layout
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
+      {/* Header with back button and title */}
       <View style={[styles.header, { backgroundColor: colors.buttonBackground }]}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => router.back()} // Navigate back to previous screen
         >
           <Feather name="arrow-left" size={24} color={colors.buttonText} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.buttonText }]}>
           Parking Assistant
         </Text>
-        <View style={styles.placeholder} />
+        <View style={styles.placeholder} /> {/* Spacer for center alignment */}
       </View>
 
-      {/* Messages */}
+      {/* Scrollable messages container */}
       <ScrollView
         ref={scrollViewRef}
         style={styles.messagesContainer}
         contentContainerStyle={styles.messagesContent}
       >
-        {messages.map(renderMessage)}
-        {isLoading && (
+        {messages.map(renderMessage)} {/* Render all chat messages */}
+        {isLoading && ( // Show loading indicator when API request is in progress
           <View style={[styles.messageContainer, styles.botMessage]}>
             <View style={[styles.messageBubble, { backgroundColor: colors.modalBackground }]}>
               <Text style={[styles.messageText, { color: colors.modalText }]}>
@@ -261,7 +338,7 @@ Provide a helpful, concise response.`;
         )}
       </ScrollView>
 
-      {/* Input */}
+      {/* Input area with text field and send button */}
       <View style={[styles.inputContainer, { backgroundColor: colors.background }]}>
         <TextInput
           style={[
@@ -272,22 +349,22 @@ Provide a helpful, concise response.`;
               borderColor: colors.inputBorder,
             },
           ]}
-          placeholder="Ask about parking availability..."
+          placeholder="Ask about parking availability..." // Hint text for users
           placeholderTextColor={theme === 'dark' ? '#aaaaaa' : '#777777'}
           value={inputText}
-          onChangeText={setInputText}
-          multiline
-          maxLength={500}
+          onChangeText={setInputText} // Update input state on text change
+          multiline // Allow multiple lines of text
+          maxLength={500} // Limit input length
         />
         <TouchableOpacity
           style={[
             styles.sendButton,
             {
-              backgroundColor: inputText.trim() ? colors.buttonBackground : '#ccc',
+              backgroundColor: inputText.trim() ? colors.buttonBackground : '#ccc', // Disabled styling when empty
             },
           ]}
-          onPress={sendMessage}
-          disabled={!inputText.trim() || isLoading}
+          onPress={sendMessage} // Send message when pressed
+          disabled={!inputText.trim() || isLoading} // Disable when empty or loading
         >
           <Feather
             name="send"
@@ -299,6 +376,11 @@ Provide a helpful, concise response.`;
     </View>
   );
 }
+
+/**
+ * StyleSheet for component styling
+ * Defines layout, colors, and dimensions for all UI elements
+ */
 
 const styles = StyleSheet.create({
   container: {
