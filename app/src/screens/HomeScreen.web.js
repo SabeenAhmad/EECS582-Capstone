@@ -1,4 +1,47 @@
 /**
+ * HomeScreen Component
+ * 
+ * Description: Main screen showing interactive map with parking lot markers,
+ * search functionality, feedback modal, and navigation buttons.
+ * 
+ * Programmer: Tanu Sakaray, Sriya Annem, Anna Ross
+ * Date Created: October 15, 2025
+ * Date Revised: February 15, 2026
+ * Revision Description: Added chatbot button integration
+ * 
+ * Preconditions:
+ * - Leaflet library available for web
+ * - Theme context configured
+ * - Parking data imported
+ * - Font loading setup
+ * 
+ * Acceptable Input:
+ * - Search text for lot filtering
+ * - Touch interactions on buttons/map
+ * - Feedback text and ratings
+ * 
+ * Postconditions:
+ * - Renders interactive map with parking data
+ * - Handles navigation to other screens
+ * - Manages feedback submission
+ * 
+ * Return Values:
+ * - JSX component for home screen
+ * 
+ * Error Conditions:
+ * - Map loading failures (shows loading screen)
+ * - Font loading issues
+ * 
+ * Side Effects:
+ * - Dynamic library loading
+ * - Navigation state changes
+ * - Console logging for feedback
+ * 
+ * Known Faults:
+ * - Requires web environment for Leaflet
+ */
+
+/**
  * Imports React, state hooks, navigation, parking event data,
  * UI components, icons, fonts, mock lot data, Leaflet CSS, and theme context.
  */
