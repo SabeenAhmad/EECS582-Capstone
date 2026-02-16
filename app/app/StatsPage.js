@@ -143,10 +143,10 @@ export default function StatsPage() {
         </Text>
       </View>
 
-      {/* Lot Title */}
-      <Text style={[styles.title, { color: colors.text, fontSize: isSmall ? 30 : 42 }]}>
-        {lotData.name}
-      </Text>
+        {/* Title */}
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>{lotData.name}</Text>
+        </View>
 
       {/* Occupancy Progress Bar */}
       <View
