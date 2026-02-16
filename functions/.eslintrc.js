@@ -15,7 +15,10 @@ module.exports = {
     "prefer-arrow-callback": "error",
     "quotes": ["error", "double", {"allowTemplateLiterals": true}],
     "require-jsdoc": "off",
+    "linebreak-style": "off",
+
   },
+
   overrides: [
     {
       files: ["**/*.spec.*"],
