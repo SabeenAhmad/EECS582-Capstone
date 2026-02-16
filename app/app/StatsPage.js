@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 /**
  * StatsPage
  *
@@ -10,11 +9,9 @@
  *
  * Data is dynamically themed based on light/dark mode.
  */
-=======
->>>>>>> f7e9bd37e3cc75168c499bc51d82667739b388e1
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFonts, Poppins_600SemiBold } from '@expo-google-fonts/poppins';
 import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
@@ -33,6 +30,9 @@ export default function StatsPage() {
 
   const router = useRouter();
   const { theme, colors } = useTheme(); 
+  const { width } = useWindowDimensions();
+  // Use a phone-friendly layout under this breakpoint.
+  const isSmall = width < 700;
 
   /** Load required fonts */
   const [fontsLoaded] = useFonts({
@@ -66,15 +66,6 @@ export default function StatsPage() {
   const occupied = latest.occupied;
   const percentFull = (occupied / lotData.total) * 100;
   const permitType = lotData.permit;
-  const getHourlyData = () => {
-    const data = new Array(24).fill(0);
-    lotData.dataPoints.forEach((point) => {
-      const hour = parseInt(point.time.split(':')[0], 10);
-      const occupancyRate = (point.occupied / lotData.total) * 100;
-      data[hour] = occupancyRate;
-    });
-    return data;
-  };
 
   // ------------------------------------------
   // Convert raw datapoints → hourly occupancy array
@@ -131,7 +122,12 @@ export default function StatsPage() {
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={{ paddingTop: 100, paddingHorizontal: 40, paddingBottom: 40 }}
+      contentContainerStyle={{
+        // Tighten page gutters/header spacing on narrow screens.
+        paddingTop: isSmall ? 80 : 100,
+        paddingHorizontal: isSmall ? 20 : 40,
+        paddingBottom: 40,
+      }}
     >
 
       {/* Navigation back to Home */}
@@ -147,17 +143,10 @@ export default function StatsPage() {
         </Text>
       </View>
 
-<<<<<<< HEAD
       {/* Lot Title */}
-      <Text style={[styles.title, { color: colors.text }]}>
+      <Text style={[styles.title, { color: colors.text, fontSize: isSmall ? 30 : 42 }]}>
         {lotData.name}
       </Text>
-=======
-        {/* Title */}
-        <View style={styles.titleContainer}>
-          <Text style={styles.title}>{lotData.name}</Text>
-        </View>
->>>>>>> f7e9bd37e3cc75168c499bc51d82667739b388e1
 
       {/* Occupancy Progress Bar */}
       <View
@@ -175,7 +164,8 @@ export default function StatsPage() {
       </View>
 
       {/* Top Summary Row */}
-      <View style={styles.topRowContainer}>
+      {/* Stack columns on small screens to prevent crowding/overlap. */}
+      <View style={[styles.topRowContainer, isSmall && styles.topRowContainerSmall]}>
 
         {/* LEFT COLUMN: occupancy + permit type */}
         <View style={styles.leftColumn}>
@@ -195,7 +185,7 @@ export default function StatsPage() {
         </View>
 
         {/* RIGHT COLUMN: last updated + refresh button */}
-        <View style={styles.rightColumn}>
+        <View style={[styles.rightColumn, isSmall && styles.rightColumnSmall]}>
           <Text style={[styles.infoText, { color: colors.text }]}>
             Last updated: {lastUpdatedTime.toLocaleTimeString()}
           </Text>
@@ -289,6 +279,11 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 12,
   },
+  topRowContainerSmall: {
+    // Keep consistent separation once left/right sections are stacked.
+    flexDirection: 'column',
+    gap: 12,
+  },
 
   leftColumn: {
     flexDirection: 'column',
@@ -300,6 +295,10 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'flex-end',
     gap: 10,
+  },
+  rightColumnSmall: {
+    // Match left column alignment in stacked mobile layout.
+    alignItems: 'flex-start',
   },
 
   homeButton: {

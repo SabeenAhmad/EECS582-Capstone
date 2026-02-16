@@ -1,4 +1,47 @@
 /**
+ * HomeScreen Component
+ * 
+ * Description: Main screen showing interactive map with parking lot markers,
+ * search functionality, feedback modal, and navigation buttons.
+ * 
+ * Programmer: Tanu Sakaray, Sriya Annem, Anna Ross
+ * Date Created: October 15, 2025
+ * Date Revised: February 15, 2026
+ * Revision Description: Added chatbot button integration
+ * 
+ * Preconditions:
+ * - Leaflet library available for web
+ * - Theme context configured
+ * - Parking data imported
+ * - Font loading setup
+ * 
+ * Acceptable Input:
+ * - Search text for lot filtering
+ * - Touch interactions on buttons/map
+ * - Feedback text and ratings
+ * 
+ * Postconditions:
+ * - Renders interactive map with parking data
+ * - Handles navigation to other screens
+ * - Manages feedback submission
+ * 
+ * Return Values:
+ * - JSX component for home screen
+ * 
+ * Error Conditions:
+ * - Map loading failures (shows loading screen)
+ * - Font loading issues
+ * 
+ * Side Effects:
+ * - Dynamic library loading
+ * - Navigation state changes
+ * - Console logging for feedback
+ * 
+ * Known Faults:
+ * - Requires web environment for Leaflet
+ */
+
+/**
  * Imports React, state hooks, navigation, parking event data,
  * UI components, icons, fonts, mock lot data, Leaflet CSS, and theme context.
  */
@@ -346,6 +389,21 @@ export default function HomeScreen() {
         />
       </TouchableOpacity>
 
+      {/** CHATBOT BUTTON */}
+      <TouchableOpacity
+        style={[
+          styles.chatbotButton,
+          { backgroundColor: colors.buttonBackground },
+        ]}
+        onPress={() => router.push('/chatbot')}
+      >
+        <Feather
+          name="message-square"
+          size={24}
+          color={colors.buttonText}
+        />
+      </TouchableOpacity>
+
       {/** SEARCH BAR + SUGGESTIONS */}
       <View
         style={[
@@ -560,6 +618,23 @@ const styles = StyleSheet.create({
   feedbackButton: {
     position: 'absolute',
     top: 90,
+    right: 20,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 5,
+    zIndex: 21,
+  },
+
+  chatbotButton: {
+    position: 'absolute',
+    top: 150,
     right: 20,
     width: 52,
     height: 52,
