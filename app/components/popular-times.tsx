@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 
 interface PopularTimesProps {
   data: number[];
@@ -22,6 +22,9 @@ export const PopularTimes: React.FC<PopularTimesProps> = ({
   currentHour = new Date().getHours(),
   maxCapacity,
 }) => {
+  const { width } = useWindowDimensions();
+  // Compact layout for phones/smaller viewports.
+  const isSmall = width < 700;
   const values = HOURS_TO_SHOW.map((h) => data[h] ?? 0);
   const chartHeight = 180;
 
@@ -64,6 +67,8 @@ export const PopularTimes: React.FC<PopularTimesProps> = ({
               const actual = (pct / 100) * maxCapacity;
               const barHeight =
                 maxCapacity === 0 ? 0 : (actual / maxCapacity) * chartHeight;
+              // On small screens, render every other x-axis label to avoid overlap.
+              const showLabel = !isSmall || idx % 2 === 0;
 
               // color-coded
               let barColor = '#9AE29B';
@@ -78,6 +83,7 @@ export const PopularTimes: React.FC<PopularTimesProps> = ({
                     style={[
                       styles.bar,
                       {
+                        width: isSmall ? 20 : 30,
                         height: barHeight,
                         backgroundColor: barColor,
                         borderWidth: isCurrent ? 1.5 : 0,
@@ -85,7 +91,10 @@ export const PopularTimes: React.FC<PopularTimesProps> = ({
                       },
                     ]}
                   />
-                  <Text style={styles.timeLabel}>{formatHourLabel(hour)}</Text>
+                  {/* Keep label space reserved even when text is hidden so all bars share the same baseline. */}
+                  <Text style={[styles.timeLabel, !showLabel && styles.timeLabelHidden]}>
+                    {formatHourLabel(hour)}
+                  </Text>
                 </View>
               );
             })}
@@ -164,8 +173,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    paddingHorizontal: 10,
-    paddingLeft: 15,
+    paddingHorizontal: 6,
+    paddingLeft: 10,
   },
   barWrapper: {
     alignItems: 'center',
@@ -177,9 +186,16 @@ const styles = StyleSheet.create({
   },
   timeLabel: {
     marginTop: 6,
-    fontSize: 12,
+    fontSize: 11,
+    // Fixed metrics prevent alternating columns from shifting vertically.
+    lineHeight: 14,
+    height: 14,
     color: '#333',
     textAlign: 'center',
+  },
+  timeLabelHidden: {
+    // Hide text while preserving layout space.
+    opacity: 0,
   },
 });
 
