@@ -344,3 +344,107 @@ export default function StatsPage() {
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 42,
+    fontFamily: "Poppins_600SemiBold",
+    textAlign: "left",
+    marginBottom: 25,
+  },
+  progressContainer: {
+    width: "100%",
+    height: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: "hidden",
+    marginBottom: 16,
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 12,
+  },
+  infoText: {
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+  },
+  permitTag: {
+    borderWidth: 1.5,
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    marginTop: 10,
+  },
+  permitText: {
+    fontSize: 16,
+    fontFamily: "Inter_600SemiBold",
+    color: "#000",
+  },
+  homeButtonContainer: {
+    position: "absolute",
+    top: 30,
+    right: 20,
+    zIndex: 10,
+  },
+  topRowContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    width: "100%",
+    marginTop: 12,
+  },
+  topRowContainerSmall: {
+    flexDirection: "column",
+    gap: 12,
+  },
+  leftColumn: {
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  rightColumn: {
+    flexDirection: "column",
+    alignItems: "flex-end",
+    gap: 10,
+  },
+  rightColumnSmall: {
+    alignItems: "flex-start",
+  },
+  homeButton: {
+    fontFamily: "Inter_600SemiBold",
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 8,
+    fontSize: 15,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  refreshButton: {
+    fontFamily: "Inter_600SemiBold",
+    color: "white",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    fontSize: 15,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 2,
+    textAlign: "center",
+    minWidth: 100,
+  },
+  chartContainer: {
+    marginTop: 30,
+    marginBottom: 40,
+  },
+  chartTitle: {
+    fontSize: 32,
+    fontFamily: "Poppins_600SemiBold",
+    marginBottom: 15,
+  },
+});
