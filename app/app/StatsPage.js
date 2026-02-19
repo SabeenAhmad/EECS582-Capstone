@@ -7,6 +7,8 @@
  * - "Last updated" timestamp with refresh button (from server when available)
  * - Busy-hour chart (still derived from local historical mock until backend provides history)
  *
+ * Requirements:
+ * Req 36: Website fetches occupancy via this GET endpoint instead of mock data
  * Data is dynamically themed based on light/dark mode.
  */
 

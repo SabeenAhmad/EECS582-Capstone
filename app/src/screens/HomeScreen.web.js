@@ -4,9 +4,10 @@
  * Description: Main screen showing interactive map with parking lot markers,
  * search functionality, feedback modal, and navigation buttons.
  * 
- * Programmer: Tanu Sakaray, Sriya Annem, Anna Ross
+ * Programmer: Tanu Sakaray, Sriya Annem, Anna Ross, Samantha Adorno
  * Date Created: October 15, 2025
  * Date Revised: February 15, 2026
+ * Date Revised: February 18, 2026 for GET requets
  * Revision Description: Added chatbot button integration
  * 
  * Preconditions:
@@ -36,6 +37,9 @@
  * - Dynamic library loading
  * - Navigation state changes
  * - Console logging for feedback
+ * 
+ * Requirements:
+ * Req 36: Website fetches occupancy via this GET endpoint instead of mock data
  * 
  * Known Faults:
  * - Requires web environment for Leaflet

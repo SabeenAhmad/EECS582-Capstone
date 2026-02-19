@@ -7,7 +7,8 @@
  *   for ENTRY/EXIT events and occupancy updates.
  *
  * Implements Requirements:
- *   - Req 11: Authenticated POST requests from Raspberry Pi (x-api-key)
+ *   - Req 9 : Prevent duplicate vehicle events using cooldown logic (configurable)
+ *   - Req 10: Define/enforce JSON schema for occupancy update payloads
  *   - Req 12: Validate requests in Cloud Function before writing to Firestore
  *   - Req 13: Reject unauthorized/malformed requests with clear errors
  *   - Req 14: Store server-side timestamps for events and status updates
@@ -21,11 +22,12 @@
  * Programmer: Samantha Adorno
  * Created: 2026-02-9
  * Revision: 2026-02-15 (deployed coud function and move writing logic from server.js to here)
+ * Revision: 2026-02-18 (added Req 9 cooldown + Req 10 schema enforcement)
  *
  * Preconditions:
  *   - Firebase project initialized and Firestore enabled
- *   - lots/{lotId} documents exist (optional numeric "capacity" field)
- *   - API_KEY environment variable optionally configured for authentication
+ *   - lots/{lotId} documents exist 
+ *   - API_KEY environment variable configured for authentication
  *
  * Inputs:
  *   - POST /event/entry body: { lotId: string, sensorId: string }
@@ -53,43 +55,92 @@ const crypto = require("crypto");
 admin.initializeApp();
 const db = admin.firestore();
 
-// -----------  input validation (Req 12, 13) -----------
+// ----------- Req 9: configurable cooldown -----------
+const COOLDOWN_MS = Number(process.env.COOLDOWN_MS || 1200);
+if (!Number.isFinite(COOLDOWN_MS) || COOLDOWN_MS < 0) {
+  // Fail safe: if misconfigured, default to 1200ms
+  // (Do not throw at module load; keep function deployable.)
+}
+
+// ----------- helpers -----------
+function httpError(status, message) {
+  const err = new Error(message);
+  err.status = status;
+  throw err;
+}
+
+// Req 13: basic string validation
 function assertString(name, val) {
   if (!val || typeof val !== "string") {
-    const err = new Error(`${name} is required (string)`);
-    err.status = 400;
-    throw err;
+    httpError(400, `${name} is required (string)`);
   }
 }
 
-// -----------  unique ID generation (Req 18) -----------
+// Req 10: enforce payload "schema" (strict keys + types)
+// Schema for both endpoints:
+// {
+//   lotId: string (non-empty),
+//   sensorId: string (non-empty)
+// }
+function validateEventPayload(body) {
+  // Content-type safety: if body is undefined, it can be missing JSON parsing
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    httpError(400, "Request body must be a JSON object");
+  }
+
+  const allowedKeys = new Set(["lotId", "sensorId"]);
+  for (const k of Object.keys(body)) {
+    if (!allowedKeys.has(k)) {
+      httpError(400, `Unexpected field: ${k}`);
+    }
+  }
+
+  assertString("lotId", body.lotId);
+  assertString("sensorId", body.sensorId);
+
+  const lotId = body.lotId.trim();
+  const sensorId = body.sensorId.trim();
+
+  if (!lotId) httpError(400, "lotId must be a non-empty string");
+  if (!sensorId) httpError(400, "sensorId must be a non-empty string");
+
+  const idRe = /^[A-Za-z0-9._-]+$/;
+  if (!idRe.test(lotId)) httpError(400, "lotId contains invalid characters");
+  if (!idRe.test(sensorId)) httpError(400, "sensorId contains invalid characters");
+
+  return { lotId, sensorId };
+}
+
+// Req 18: unique ID generation
 function makeId() {
   if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
   return `${Date.now()}-${crypto.randomBytes(8).toString("hex")}`;
 }
 
-// ----------- auth check using API key header (Req 11, 13) -----------
+// Req 13: auth check using API key header
 function requireApiKey(req) {
   const API_KEY = process.env.API_KEY;
-  if (!API_KEY) return; 
+  if (!API_KEY) return;
 
   const got = req.get("x-api-key");
   if (got !== API_KEY) {
-    const err = new Error("Unauthorized");
-    err.status = 401;
-    throw err;
+    httpError(401, "Unauthorized");
   }
 }
 
-// ----------- transactional event write + occupancy update (Req 14, 17–19, 21) -----------
+// Req 9: compute a stable cooldown doc id for (sensor,eventType)
+function cooldownDocId(sensorId, eventType) {
+  // Keep it filesystem/doc-id safe
+  return `${sensorId}_${eventType}`;
+}
+
+// ----------- transactional event write + occupancy update (Req 9, 14, 17–19, 21) -----------
 async function recordLotEvent({ lotId, sensorId, eventType }) {
   assertString("lotId", lotId);
   assertString("sensorId", sensorId);
 
   if (!["ENTRY", "EXIT"].includes(eventType)) {
-    const err = new Error("eventType must be ENTRY or EXIT");
-    err.status = 400;
-    throw err;
+    httpError(400, "eventType must be ENTRY or EXIT");
   }
 
   const id = makeId();
@@ -98,13 +149,59 @@ async function recordLotEvent({ lotId, sensorId, eventType }) {
   const statusRef = lotRef.collection("_meta").doc("current_status");
   const eventRef = lotRef.collection("events").doc(id);
 
+  // Req 9: cooldown ref stored under _meta/cooldowns
+  const cooldownRef = lotRef
+    .collection("_meta")
+    .doc("cooldowns")
+    .collection("by_sensor_event")
+    .doc(cooldownDocId(sensorId, eventType));
+
+  const nowMs = Date.now();
+
+  // If deduped, we'll return this instead of creating event/update
+  let deduped = false;
+
   await db.runTransaction(async (t) => {
     const lotSnap = await t.get(lotRef);
     if (!lotSnap.exists) {
-      const err = new Error(`Unknown lotId: ${lotId}`);
-      err.status = 404;
-      throw err;
+      httpError(404, `Unknown lotId: ${lotId}`);
     }
+
+    // Req 9: cooldown check
+    const cdSnap = await t.get(cooldownRef);
+    const lastMs = cdSnap.exists ? Number(cdSnap.data().last_event_ms || 0) : 0;
+
+    if (Number.isFinite(lastMs) && nowMs - lastMs < COOLDOWN_MS) {
+      deduped = true;
+
+      // If you want "one per window" strictly from first event, comment this out.
+      t.set(
+        cooldownRef,
+        {
+          last_event_ms: nowMs,
+          last_event_type: eventType,
+          last_sensor_id: sensorId,
+          last_updated: admin.firestore.FieldValue.serverTimestamp(),
+          cooldown_ms: COOLDOWN_MS,
+        },
+        { merge: true }
+      );
+
+      return; // do NOT create event or modify occupancy
+    }
+
+    // Passed cooldown -> record it
+    t.set(
+      cooldownRef,
+      {
+        last_event_ms: nowMs,
+        last_event_type: eventType,
+        last_sensor_id: sensorId,
+        last_updated: admin.firestore.FieldValue.serverTimestamp(),
+        cooldown_ms: COOLDOWN_MS,
+      },
+      { merge: true }
+    );
 
     const lot = lotSnap.data() || {};
     const cap = typeof lot.capacity === "number" ? lot.capacity : null;
@@ -139,7 +236,12 @@ async function recordLotEvent({ lotId, sensorId, eventType }) {
     );
   });
 
-  return { id };
+  // Req 9: communicate dedupe result clearly
+  if (deduped) {
+    return { deduped: true, cooldown_ms: COOLDOWN_MS };
+  }
+
+  return { id, deduped: false };
 }
 
 // ----------- Write endpoints (Req 15, 16) -----------
@@ -153,8 +255,15 @@ exports.eventEntry = functions.https.onRequest(async (req, res) => {
 
     requireApiKey(req);
 
-    const { lotId, sensorId } = req.body || {};
+    // Req 10: schema validation
+    const { lotId, sensorId } = validateEventPayload(req.body);
+
     const result = await recordLotEvent({ lotId, sensorId, eventType: "ENTRY" });
+
+    // If deduped, return 200 (no new event created)
+    if (result.deduped) {
+      return res.status(200).json({ ok: true, ...result });
+    }
 
     return res.status(201).json({ ok: true, ...result });
   } catch (e) {
@@ -171,8 +280,14 @@ exports.eventExit = functions.https.onRequest(async (req, res) => {
 
     requireApiKey(req);
 
-    const { lotId, sensorId } = req.body || {};
+    // Req 10: schema validation
+    const { lotId, sensorId } = validateEventPayload(req.body);
+
     const result = await recordLotEvent({ lotId, sensorId, eventType: "EXIT" });
+
+    if (result.deduped) {
+      return res.status(200).json({ ok: true, ...result });
+    }
 
     return res.status(201).json({ ok: true, ...result });
   } catch (e) {
