@@ -26,12 +26,13 @@
 const express = require("express");
 const admin = require("firebase-admin");
 const fs = require("fs");
+const cors = require("cors");
 const path = require("path");
 
 //  Firebase Admin initialization (READ-ONLY usage) -----------
-const SERVICE_ACCOUNT_PATH =
+  const SERVICE_ACCOUNT_PATH =
   process.env.SERVICE_ACCOUNT_PATH ||
-  "../env/parking-capstone-9778c-firebase-adminsdk-fbsvc-c1179e192c.json";
+  "./env/parking-capstone-9778c-firebase-adminsdk-fbsvc-c1179e192c.json";
 
 if (!fs.existsSync(SERVICE_ACCOUNT_PATH)) {
   console.error(`Service account not found at: ${SERVICE_ACCOUNT_PATH}`);
@@ -43,6 +44,15 @@ admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 
 const db = admin.firestore();
 const app = express();
+
+// public CORS configuration
+app.use(cors({ origin: "*", methods: ["GET", "OPTIONS"] }));
+
+// Handle all preflight requests 
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
 
 //  validate required string params (Req 13) -----------
 function assertString(name, val) {
@@ -92,6 +102,101 @@ app.get("/api/lot/:lotId/count", async (req, res) => {
     const count = snap.exists ? (snap.data().count_now || 0) : 0;
 
     return res.json({ ok: true, lotId, count_now: count });
+  } catch (e) {
+    return res.status(e.status || 500).json({ ok: false, error: e.message || String(e) });
+  }
+});
+
+// Req 35/36 (read-only): GET /api/lots returns all lots + current status
+app.get("/api/lots", async (req, res) => {
+  try {
+    const snap = await db.collection("lots").get();
+
+    const lots = await Promise.all(
+      snap.docs.map(async (doc) => {
+        const lot = doc.data() || {};
+        const lotId = doc.id;
+
+        const statusRef = db
+          .collection("lots")
+          .doc(lotId)
+          .collection("_meta")
+          .doc("current_status");
+
+        const statusSnap = await statusRef.get();
+        const status = statusSnap.exists
+          ? statusSnap.data()
+          : { count_now: 0, last_updated: null };
+
+        return {
+          id: lotId,
+          name: lot.name || lotId,
+          latitude: lot.latitude,
+          longitude: lot.longitude,
+          capacity: lot.capacity ?? 0,
+          description: lot.description || "",
+          count_now: status.count_now ?? 0,
+          last_updated: status.last_updated ?? null,
+        };
+      })
+    );
+
+    return res.json({ ok: true, lots });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
+});
+
+// GET /api/lot/:lotId  -> lot metadata + status + historical summary
+app.get("/api/lot/:lotId", async (req, res) => {
+  try {
+    const lotId = req.params.lotId;
+    assertString("lotId", lotId);
+
+    const lotSnap = await db.collection("lots").doc(lotId).get();
+    const lot = lotSnap.exists ? (lotSnap.data() || {}) : {};
+
+    const statusSnap = await db
+      .collection("lots")
+      .doc(lotId)
+      .collection("_meta")
+      .doc("current_status")
+      .get();
+
+    const status = statusSnap.exists
+      ? (statusSnap.data() || {})
+      : { count_now: 0, last_updated: null };
+
+    const averageByHour =
+      lot?.historicalData?.averageByHour && typeof lot.historicalData.averageByHour === "object"
+        ? lot.historicalData.averageByHour
+        : {};
+
+    return res.json({
+      ok: true,
+      lot: {
+        id: lotId,
+
+        // prefer displayName (Allen Fieldhouse Lot), fall back to name (allen_fieldhouse)
+        name: lot.displayName || lot.name || lotId,
+
+        rawName: lot.name || null,
+        displayName: lot.displayName || null,
+
+        capacity: lot.capacity ?? 0,
+        permit: lot.permit || "Garage",
+        description: lot.description || "",
+        latitude: lot.latitude,
+        longitude: lot.longitude,
+
+        // historical summary used for Busy Hours
+        averageByHour,
+
+        // live status from _meta/current_status
+        count_now: status.count_now ?? 0,
+        last_updated: status.last_updated ?? null,
+      },
+    });
   } catch (e) {
     return res.status(e.status || 500).json({ ok: false, error: e.message || String(e) });
   }

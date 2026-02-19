@@ -1,41 +1,44 @@
-import { useEffect, useState } from 'react'; // React hooks used for managing state and lifecycle
-import mockLots from '../data/mockParking'; // placeholder mock parking data used instead of Firebase
-
+import { useEffect, useState } from "react";
 
 /**
- * TEMP placeholder hook (no Firebase yet)
- * Simulates loading delay so Requirement 28 works.
- *Custom hook providing lots data + loading state.
+ * useParkingLots
+ * Fetches lot metadata + live occupancy from the server.js GET endpoint.
+ * Implements: Req 22, 35, 36 and supports Req 28 loading indicator behavior.
  */
 export function useParkingLots() {
+  const [lots, setLots] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const [lots, setLots] = useState([]); //tores parking lot data returned to UI
-  const [loading, setLoading] = useState(true); //controls loading indicator visibility
-  const [error, setError] = useState(null); //holds error state if data load fails
+  useEffect(() => {
+    let alive = true;
 
-
- useEffect(() => { //run once on component mount to simulate data fetching
-
-    // simulate async fetch delay
-    const timeout = setTimeout(() => { // create fake network delay using timer
+    async function load() {
       try {
+        setLoading(true);
+        setError(null);
 
-        setLots(mockLots); // populate state with mock parking data
-        setLoading(false); //  stop loading indicator after data is ready
+        const resp = await fetch("http://localhost:3000/api/lots");
 
-      } catch (e) { // catch unexpected errors during mock fetch
+        const json = await resp.json();
 
-        setError(e); // store error in state so UI can show fallback
-        setLoading(false); //stop loading even if error occurs
+        if (!resp.ok || !json?.ok) {
+          throw new Error(json?.error || `Failed to load lots (${resp.status})`);
+        }
 
+        if (alive) setLots(Array.isArray(json.lots) ? json.lots : []);
+      } catch (e) {
+        if (alive) setError(e);
+      } finally {
+        if (alive) setLoading(false);
       }
-    }, 1200); // fake loading time (1.2 seconds) to demonstrate loading UI
+    }
 
+    load();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
-    return () => clearTimeout(timeout); // leanup timer if component unmounts
-
-  }, []); //empty dependency array ensures effect runs only once
-
-  return { lots, loading, error }; // expose data + loading state to components
-
+  return { lots, loading, error };
 }

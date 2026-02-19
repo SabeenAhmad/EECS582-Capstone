@@ -62,26 +62,10 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useFonts, Inter_600SemiBold, Inter_400Regular } from '@expo-google-fonts/inter';
-import lots from '../data/mockParking';
 import 'leaflet/dist/leaflet.css';
 import { useTheme } from '../../app/context/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
-
-/**
- * Converts 24-hour time (e.g., "17:34") into a readable 12-hour format (5:34 PM).
- * Used throughout the app for displaying last-updated timestamps.
- */
-function convertTo12Hour(time24) {
-  const [hourStr, minute] = time24.split(":");
-  let hour = parseInt(hourStr, 10);
-  const ampm = hour >= 12 ? "PM" : "AM";
-
-  hour = hour % 12;
-  if (hour === 0) hour = 12;
-
-  return `${hour}:${minute} ${ampm}`;
-}
 
 /**
  * Returns availability info for a parking lot:
@@ -89,20 +73,49 @@ function convertTo12Hour(time24) {
  * - available spots
  * - formatted last updated timestamp
  */
+function formatLastUpdated(ts) {
+  if (!ts) return "Unknown"; // Return "Unknown" if timestamp is missing
+
+  if (typeof ts === "string") {
+    const date = new Date(ts);
+    return isNaN(date.getTime()) ? "Invalid Date" : date.toLocaleTimeString(); // Handle invalid date strings
+  }
+
+  if (ts?._seconds) {
+    return new Date(ts._seconds * 1000).toLocaleTimeString(); // Handle Firestore-like timestamps with _seconds
+  }
+
+  if (ts?.seconds) {
+    return new Date(ts.seconds * 1000).toLocaleTimeString(); // Handle Firestore timestamps
+  }
+
+  if (ts?.toDate) {
+    const date = ts.toDate();
+    return isNaN(date.getTime()) ? "Invalid Date" : date.toLocaleTimeString(); // Handle Firestore Timestamp objects
+  }
+
+  return "Unknown"; // Default fallback
+}
+
 function getLatestAvailability(lot) {
-  const latest = lot.dataPoints[lot.dataPoints.length - 1];
-  const available = lot.total - latest.occupied;
+  const cap = typeof lot.capacity === "number" ? lot.capacity : (lot.total || 0); // Ensure cap is a number or defaults to 0
+  const countNow = typeof lot.count_now === "number" ? lot.count_now : 0; // Ensure countNow is a number or defaults to 0
+
+  const available = Math.max(0, cap - countNow); // Calculate available spots
+  const lastUpdated = formatLastUpdated(lot.last_updated); // Format last updated timestamp
+
   return {
-    available,
-    lastUpdated: convertTo12Hour(latest.time),
-    occupied: latest.occupied,
+    available, // Spots available
+    lastUpdated, // Last updated timestamp
+    occupied: countNow, // Currently occupied spots
+    total: cap || 0, 
   };
 }
 
 export default function HomeScreen() {
   /** Search bar input */
   const [search, setSearch] = useState('');
-  const { lots, loading, error } = useParkingLots();//Req 28: call custom parking hook
+  const { lots: dbLots, loading, error } = useParkingLots();
 
   /** Leaflet dynamic-loading state (web map library) */
   const [LeafletReady, setLeafletReady] = useState(false);
@@ -137,19 +150,19 @@ export default function HomeScreen() {
    * Filters lots based on search input (case-insensitive).
    * Uses startsWith to match from the beginning of the lot name.
    */
-  const filteredLots = lots.filter((lot) =>
-    lot.name.toLowerCase().startsWith(search.trim().toLowerCase())
-  );
+  const filteredLots = (dbLots || []).filter((lot) =>
+  (lot.displayName || lot.name || "").toLowerCase().startsWith(search.trim().toLowerCase())
+);
 
   /**
    * Handles selecting a lot from suggestions:
    * - Fills search bar
    * - Navigates to StatsPage for that lot
    */
-  const onSelectLot = (lot) => {
-    setSearch(lot.name);
-    router.push(`/StatsPage?lot=${encodeURIComponent(lot.name)}`);
-  };
+ const onSelectLot = (lot) => {
+  setSearch(lot.displayName || lot.name || "");
+  router.push(`/StatsPage?lot=${encodeURIComponent(lot.id)}`);
+};
 
   /**
    * Saves user feedback in console and resets modal form.
@@ -201,7 +214,7 @@ export default function HomeScreen() {
     return (
       <View style={[styles.suggestions, { backgroundColor: searchBackground }]}>
         {filteredLots.slice(0, 6).map((lot) => {
-          const { available } = getLatestAvailability(lot);
+          const { available, lastUpdated, total } = getLatestAvailability(lot); 
           return (
             <TouchableOpacity
               key={lot.id}
@@ -209,7 +222,7 @@ export default function HomeScreen() {
               onPress={() => onSelectLot(lot)}
             >
               <Text style={[styles.suggestionText, { color: searchTextColor }]}>
-                {lot.name} — {available}/{lot.total}
+                {lot.displayName || lot.name || "Unnamed Lot"} — {available}/{total}
               </Text>
             </TouchableOpacity>
           );
@@ -286,6 +299,17 @@ if (loading) { // NEW: check loading state from hook
     </View>
   );
 }
+if (error) {
+  return (
+    <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
+      <Text style={{ color: colors.text }}>Failed to load parking data.</Text>
+      <Text style={{ color: colors.text, opacity: 0.7, marginTop: 8 }}>
+        {String(error.message || error)}
+      </Text>
+    </View>
+  );
+}
+
   if (!LeafletReady || !LeafletModules || !fontsLoaded) {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
@@ -335,47 +359,48 @@ if (loading) { // NEW: check loading state from hook
 
           {/** Parking lot markers */}
           {filteredLots.map((lot) => {
-            const { available, lastUpdated } = getLatestAvailability(lot);
+  const { available, lastUpdated, total } = getLatestAvailability(lot);
 
-            return (
-              <CircleMarker
-                key={lot.id}
-                center={[lot.latitude, lot.longitude]}
-                radius={10}
-                fillColor="#ff3333"
-                color="#fff"
-                weight={2}
-                opacity={1}
-                fillOpacity={0.9}
-              >
-                <Popup>
-                  <div style={{ fontFamily: 'Arial', textAlign: 'center' }}>
-                    <div
-                      onClick={() =>
-                        router.push(`/StatsPage?lot=${encodeURIComponent(lot.name)}`)}
-                      style={{
-                        color: '#4ea1ff',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        fontSize: 16,
-                        marginBottom: 4,
-                      }}
-                    >
-                      {lot.name}
-                    </div>
+  return (
+    <CircleMarker
+      key={lot.id}
+      center={[lot.latitude, lot.longitude]}
+      radius={10}
+      fillColor="#ff3333"
+      color="#fff"
+      weight={2}
+      opacity={1}
+      fillOpacity={0.9}
+    >
+      <Popup>
+        <div style={{ fontFamily: 'Arial', textAlign: 'center' }}>
+          <div
+            onClick={() =>
+              router.push(`/StatsPage?lot=${encodeURIComponent(lot.id)}`)}
+            style={{
+              color: '#4ea1ff',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontSize: 16,
+              marginBottom: 4,
+            }}
+          >
+            {lot.displayName || lot.name || "Unnamed Lot"}
+          </div>
 
-                    <div style={{ fontSize: 14, color: popupMainColor }}>
-                      {available}/{lot.total} spots available
-                    </div>
+          <div style={{ fontSize: 14, color: popupMainColor }}>
+            {available}/{total} spots available
+          </div>
 
-                    <div style={{ fontSize: 12, color: popupSubColor, marginTop: 2 }}>
-                      Last updated: {lastUpdated}
-                    </div>
-                  </div>
-                </Popup>
-              </CircleMarker>
-            );
-          })}
+          <div style={{ fontSize: 12, color: popupSubColor, marginTop: 2 }}>
+            Last updated: {lastUpdated}
+          </div>
+        </div>
+      </Popup>
+    </CircleMarker>
+  );
+})}
+
         </MapContainer>
       </View>
 
