@@ -327,12 +327,29 @@ if (error) {
 
   /**
    * Theme-aware tile layer URLs.
-   * Uses CARTO dark map tiles in dark mode for cleaner UI.
+   * Dark mode uses a layered "soft dark" map:
+   * - Voyager (detail)
+   * - Dark no-labels overlay (tone)
+   * - Voyager labels on top (readability)
    */
   const tileUrl =
     theme === 'dark'
-      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+      // Base map detail (roads/land use) without labels, so labels can be tuned separately.
+      ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png'
       : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const darkOverlayTileUrl =
+    theme === 'dark'
+      // Dark overlay used as a "tone" layer to keep dark mode while preserving detail underneath.
+      ? 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png'
+      : null;
+  const darkLabelTileUrl =
+    theme === 'dark'
+      // Labels restored on top so street names stay readable after darkening the base.
+      ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png'
+      : null;
+  const baseTileOpacity = 1; // Keep full base detail visible.
+  const darkOverlayOpacity = 0.50; // Main darkness control for the soft-dark look.
+  const darkLabelOpacity = 0.95; // Slightly reduced so labels do not glow too strongly.
 
   const popupMainColor = '#333333';
   const popupSubColor = '#777777';
@@ -359,7 +376,24 @@ if (error) {
           <TileLayer
             attribution='&copy; OpenStreetMap & CARTO'
             url={tileUrl}
+            opacity={baseTileOpacity}
           />
+          {theme === 'dark' && darkOverlayTileUrl && (
+            // Layer 2: apply the dark tone over the detailed base map.
+            <TileLayer
+              attribution='&copy; OpenStreetMap & CARTO'
+              url={darkOverlayTileUrl}
+              opacity={darkOverlayOpacity}
+            />
+          )}
+          {theme === 'dark' && darkLabelTileUrl && (
+            // Layer 3: draw labels last so they remain readable.
+            <TileLayer
+              attribution='&copy; OpenStreetMap & CARTO'
+              url={darkLabelTileUrl}
+              opacity={darkLabelOpacity}
+            />
+          )}
 
           {/** Parking lot markers */}
           {filteredLots.map((lot) => {
