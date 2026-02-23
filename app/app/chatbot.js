@@ -78,6 +78,24 @@ export default function ChatBot() {
   const router = useRouter(); // Expo router for navigation
   const { theme, colors } = useTheme(); // Theme context for styling
 
+  // Pre-written suggested prompts for quick user access
+  // Users can tap these to insert into input field and edit before sending
+  const suggestedPrompts = [
+    "Which lot has the most available spots?",
+    "Where can I park with a Red permit?",
+    "What's the availability at Allen Fieldhouse?",
+  ];
+
+  /**
+   * Handles inserting a suggested prompt into the input field
+   * User can edit the prompt before sending 
+   * 
+   * @param {string} prompt - The suggested prompt text to insert
+   */
+  const handleSuggestedPrompt = (prompt) => {
+    setInputText(prompt);
+  };
+
   /**
    * Scrolls chat view to bottom when new messages are added
    */
@@ -132,6 +150,11 @@ export default function ChatBot() {
     setIsLoading(true); // Show loading indicator
 
     try {
+      // Check if API key is configured
+      if (OPENAI_API_KEY === 'your-openai-api-key-here' || !OPENAI_API_KEY) {
+        throw new Error('OpenAI API key not configured');
+      }
+
       // Generate context data for AI prompt
       const { currentData, historicalPatterns } = generateParkingContext();
       
@@ -156,6 +179,7 @@ GUIDELINES:
 Provide a helpful, concise response.`;
 
       // Make API request to OpenAI
+      console.log('Sending request to OpenAI...');
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -172,6 +196,8 @@ Provide a helpful, concise response.`;
           temperature: 0.7,
         }),
       });
+
+      console.log('Response status:', response.status);
 
       // Handle API errors
       if (!response.ok) {
@@ -338,6 +364,34 @@ Provide a helpful, concise response.`;
         )}
       </ScrollView>
 
+      {/* Suggested prompts section */}
+      {/* Displays pre-written prompts that users can tap to insert into input field */}
+      <View style={[styles.suggestedPromptsContainer, { backgroundColor: colors.background }]}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.suggestedPromptsContent}
+        >
+          {suggestedPrompts.map((prompt, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.suggestedPromptButton,
+                {
+                  backgroundColor: colors.modalBackground,
+                  borderColor: colors.inputBorder,
+                },
+              ]}
+              onPress={() => handleSuggestedPrompt(prompt)}
+            >
+              <Text style={[styles.suggestedPromptText, { color: colors.modalText }]}>
+                {prompt}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
       {/* Input area with text field and send button */}
       <View style={[styles.inputContainer, { backgroundColor: colors.background }]}>
         <TextInput
@@ -454,5 +508,26 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // Suggested prompts styles
+  suggestedPromptsContainer: {
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  suggestedPromptsContent: {
+    paddingHorizontal: 10,
+  },
+  suggestedPromptButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginRight: 10,
+  },
+  suggestedPromptText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
