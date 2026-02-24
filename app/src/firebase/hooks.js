@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-
+import { getLots } from "./parkingReads";
 /**
  * useParkingLots
  * Fetches lot metadata + live occupancy from GET /api/lots.
@@ -18,14 +18,8 @@ export function useParkingLots() {
         setLoading(true);
         setError(null);
 
-        const resp = await fetch("http://localhost:3000/api/lots");
-        const json = await resp.json();
-
-        if (!resp.ok || !json?.ok) {
-          throw new Error(json?.error || `Failed to load lots (${resp.status})`);
-        }
-
-        if (alive) setLots(Array.isArray(json.lots) ? json.lots : []);
+        const lots = await getLots();
+        if (alive) setLots(Array.isArray(lots) ? lots : []);
       } catch (e) {
         if (alive) setError(e);
       } finally {

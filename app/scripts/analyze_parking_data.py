@@ -49,7 +49,7 @@ def analyze_parking_data():
                 'data': full_hours.tolist(),
                 'max_occupancy': full_hours.max(),
                 'permit': lot['permit'],
-                'current_occupancy': lot['currentOccupancy'],
+                'current_occupancy': lot['count_now'],
                 'capacity': capacity
             }
     

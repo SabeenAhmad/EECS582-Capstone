@@ -32,12 +32,13 @@ import { Inter_400Regular, Inter_600SemiBold } from "@expo-google-fonts/inter";
 
 import PopularTimes from "../components/popular-times";
 import { useTheme } from "./context/ThemeContext";
+import { getLot } from "../src/firebase/parkingReads";
 
 /**
  * Local Express API base.
  * This server reads directly from Firestore (read-only).
  */
-const LOCAL_BASE = "http://localhost:3000";
+
 
 /**
  * Normalizes Firestore timestamps or ISO strings into JS Date.
@@ -94,34 +95,16 @@ export default function StatsPage() {
       setLotLoading(true);
       setLotError(null);
 
-      const encoded = encodeURIComponent(lotId);
-      const url = `${LOCAL_BASE}/api/lot/${encoded}`;
-
-      const resp = await fetch(url, { method: "GET" });
-
-      // Safer than resp.json() in case server returns HTML error pages
-      const text = await resp.text();
-      let json = null;
-      try {
-        json = JSON.parse(text);
-      } catch {
-        json = null;
-      }
-
-      if (!resp.ok || !json?.ok || !json?.lot) {
-        throw new Error(
-          json?.error ||
-            `Failed to fetch lot (${resp.status}): ${text.slice(0, 120)}`
-        );
-      }
-
-      setLotData(json.lot);
+      const lotDoc = await getLot(lotId);
+      setLotData(lotDoc);
     } catch (e) {
       setLotError(e.message || String(e));
       setLotData(null);
     } finally {
       setLotLoading(false);
     }
+
+
   }, [lotId]);
 
   /**
