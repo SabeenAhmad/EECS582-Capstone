@@ -7,8 +7,8 @@
  * 
  * Programmer: Tanusakaray
  * Date Created: February 13, 2026
- * Date Revised: February 22, 2026
- * Revision Description: AI prompt suggestions
+ * Date Revised: February 23, 2026
+ * Revision Description: AI prompt suggestions and enter key functionality
  * 
  * Preconditions:
  * - OpenAI API key must be configured
@@ -49,6 +49,7 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -75,6 +76,8 @@ export default function ChatBot() {
   const [inputText, setInputText] = useState(''); // Current user input
   const [isLoading, setIsLoading] = useState(false); // API request loading state
   const scrollViewRef = useRef(); // Reference for auto-scrolling chat
+  const inputRef = useRef(); // Reference for text input
+  const sendButtonRef = useRef(); // Reference for send button
   const router = useRouter(); // Expo router for navigation
   const { theme, colors } = useTheme(); // Theme context for styling
 
@@ -94,6 +97,18 @@ export default function ChatBot() {
    */
   const handleSuggestedPrompt = (prompt) => {
     setInputText(prompt);
+    // Focus the input field after inserting prompt (web)
+    if (Platform.OS === 'web') {
+      setTimeout(() => {
+        const inputElement = document.querySelector('input[placeholder="Ask about parking availability..."]');
+        if (inputElement) {
+          inputElement.focus();
+        }
+      }, 50);
+    } else if (inputRef.current) {
+      // Focus on mobile
+      inputRef.current.focus();
+    }
   };
 
   /**
@@ -107,6 +122,41 @@ export default function ChatBot() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Add keyboard event listener for web
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const handleKeyPress = (event) => {
+        // If the user presses the "Enter" key on the keyboard
+        if (event.key === 'Enter') {
+          // Cancel the default action
+          event.preventDefault();
+          // Trigger the send button with a click
+          if (sendButtonRef.current && inputText.trim() && !isLoading) {
+            sendMessage();
+          }
+        }
+      };
+
+      // Find the input element and add listener
+      const timer = setTimeout(() => {
+        const inputElement = document.querySelector('input[placeholder="Ask about parking availability..."]');
+        if (inputElement) {
+          inputElement.addEventListener('keypress', handleKeyPress);
+          // Store reference for cleanup
+          inputElement._keyPressHandler = handleKeyPress;
+        }
+      }, 100);
+
+      return () => {
+        clearTimeout(timer);
+        const inputElement = document.querySelector('input[placeholder="Ask about parking availability..."]');
+        if (inputElement && inputElement._keyPressHandler) {
+          inputElement.removeEventListener('keypress', inputElement._keyPressHandler);
+        }
+      };
+    }
+  }, [inputText, isLoading]);
 
   /**
    * Generates parking context data for AI prompt
@@ -134,6 +184,7 @@ export default function ChatBot() {
    * Includes fallback logic for API failures
    */
   const sendMessage = async () => {
+    if (isLoading) return; // Prevent double-send while processing
     if (!inputText.trim()) return; // Prevent empty messages
 
     // Add user message to chat
@@ -383,6 +434,8 @@ Provide a helpful, concise response.`;
                 },
               ]}
               onPress={() => handleSuggestedPrompt(prompt)}
+              accessible={false}
+              tabIndex={-1}
             >
               <Text style={[styles.suggestedPromptText, { color: colors.modalText }]}>
                 {prompt}
@@ -395,6 +448,7 @@ Provide a helpful, concise response.`;
       {/* Input area with text field and send button */}
       <View style={[styles.inputContainer, { backgroundColor: colors.background }]}>
         <TextInput
+          ref={inputRef}
           style={[
             styles.textInput,
             {
@@ -403,14 +457,24 @@ Provide a helpful, concise response.`;
               borderColor: colors.inputBorder,
             },
           ]}
-          placeholder="Ask about parking availability..." // Hint text for users
+          placeholder="Ask about parking availability..."
           placeholderTextColor={theme === 'dark' ? '#aaaaaa' : '#777777'}
           value={inputText}
-          onChangeText={setInputText} // Update input state on text change
-          multiline // Allow multiple lines of text
-          maxLength={500} // Limit input length
+          onChangeText={setInputText}
+          
+          // mobile (iOS/Android): "Send" key triggers this
+          onSubmitEditing={() => {
+            if (!isLoading && inputText.trim()) sendMessage();
+          }}
+          
+          returnKeyType="send"
+          blurOnSubmit={false}
+          multiline={false}
+          maxLength={500}
+          autoFocus={false}
         />
         <TouchableOpacity
+          ref={sendButtonRef}
           style={[
             styles.sendButton,
             {
