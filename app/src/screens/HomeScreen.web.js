@@ -68,6 +68,8 @@ import { Feather } from '@expo/vector-icons';
 import { useFonts, Inter_600SemiBold, Inter_400Regular } from '@expo-google-fonts/inter';
 import 'leaflet/dist/leaflet.css';
 import { useTheme } from '../../app/context/ThemeContext';
+import LoginScreen from "./LoginScreen";
+import { useAuthUser } from "../firebase/useAuthUser";
 
 const { width, height } = Dimensions.get('window');
 
@@ -117,14 +119,263 @@ function getLatestAvailability(lot) {
 }
 
 export default function HomeScreen() {
+  const { user, authLoading } = useAuthUser();
+  const { colors } = useTheme();
+
+  if (authLoading) {
+    return (
+      <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" />
+        <Text style={{ marginTop: 10, color: colors.text }}>Checking login...</Text>
+      </View>
+    );
+  }
+
+  if (!user) {
+    return <LoginScreen />;
+  }
+
+  // Only after login succeeds:
+  return <AuthedHomeScreen />;
+}
+/** 
+ * Stylesheet: layout, buttons, modals, search bar, banner, etc.
+ * No changes were made to your styles.
+ */
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  calendarButton: {
+    position: 'absolute',
+    bottom: 120,
+    left: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 6,
+    zIndex: 20,
+  },
+
+  themeToggleButton: {
+    position: 'absolute',
+    bottom: 120,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 6,
+    zIndex: 20,
+  },
+
+  feedbackButton: {
+    position: 'absolute',
+    top: 90,
+    right: 20,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 5,
+    zIndex: 21,
+  },
+
+  chatbotButton: {
+    position: 'absolute',
+    top: 150,
+    right: 20,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 5,
+    zIndex: 21,
+  },
+
+  searchContainer: {
+    position: 'absolute',
+    bottom: 40,
+    alignSelf: 'center',
+    width: '90%',
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+    borderWidth: 1,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingRight: 12,
+    fontSize: 16,
+    outlineWidth: 0,
+    outlineColor: 'transparent',
+    outlineStyle: 'none',
+    boxShadow: 'none',
+  },
+
+  suggestions: {
+    maxHeight: 220,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderColor: '#eee',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  suggestionItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+  },
+  suggestionText: {
+    fontSize: 15,
+  },
+  noResults: {
+    padding: 8,
+  },
+
+  banner: {
+    width: "100%",
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 9999,
+  },
+  bannerText: {
+    fontWeight: "700",
+    fontSize: 16,
+    textAlign: "center",
+  },
+
+  feedbackButtonText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 14,
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    margin: 20,
+    borderRadius: 15,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter_600SemiBold',
+    textAlign: 'center',
+    marginBottom: 15,
+  },
+  feedbackInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    fontFamily: 'Inter_400Regular',
+    textAlignVertical: 'top',
+    marginBottom: 15,
+    minHeight: 80,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  cancelButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  cancelButtonText: {
+    textAlign: 'center',
+    fontSize: 15,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  submitButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  submitButtonText: {
+    textAlign: 'center',
+    fontSize: 15,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  ratingContainer: {
+    marginBottom: 15,
+  },
+  ratingLabel: {
+    fontSize: 16,
+    fontFamily: 'Inter_600SemiBold',
+    marginBottom: 8,
+  },
+  starsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  starButton: {
+    padding: 5,
+  },
+  star: {
+    fontSize: 30,
+  },
+  starFilled: {},
+  submitButtonDisabled: {},
+  submitButtonTextDisabled: {
+    color: '#999',
+  },
+});
+
+function AuthedHomeScreen() {
+
   /** Search bar input */
   const [search, setSearch] = useState('');
   const { lots: dbLots, loading, error } = useParkingLots();
+  //const { lots: dbLots, loading, error } = useParkingLots();
 
   /** Leaflet dynamic-loading state (web map library) */
   const [LeafletReady, setLeafletReady] = useState(false);
   const [LeafletModules, setLeafletModules] = useState(null);
-
+  const [mapError, setMapError] = useState(null);
   /** Feedback modal state */
   const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
@@ -132,7 +383,6 @@ export default function HomeScreen() {
 
   /** Special event banner message */
   const [specialEventMessage, setSpecialEventMessage] = useState('');
-
   const router = useRouter();
   const { theme, toggleTheme, colors } = useTheme();
 
@@ -266,12 +516,26 @@ export default function HomeScreen() {
    * (Prevents bundling Leaflet in native versions.)
    */
   useEffect(() => {
+    let mounted = true;
+
     (async () => {
-      const leaflet = await import('leaflet');
-      const reactLeaflet = await import('react-leaflet');
-      setLeafletModules({ ...reactLeaflet, L: leaflet });
-      setLeafletReady(true);
+      try {
+        const leaflet = await import("leaflet");
+        const reactLeaflet = await import("react-leaflet");
+
+        if (!mounted) return;
+
+        setLeafletModules({ ...reactLeaflet, L: leaflet });
+        setLeafletReady(true);
+      } catch (e) {
+        console.error("Leaflet failed to load:", e);
+        if (mounted) setMapError(e?.message || String(e));
+      }
     })();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // --------------------------------------------------
@@ -313,8 +577,18 @@ if (error) {
     </View>
   );
 }
-
-  if (!LeafletReady || !LeafletModules || !fontsLoaded) {
+  if (mapError) {
+    return (
+      <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={{ color: colors.text }}>Map failed to load.</Text>
+        <Text style={{ color: colors.text, opacity: 0.7, marginTop: 8 }}>
+          {mapError}
+        </Text>
+      </View>
+    );
+  }
+  
+  if (!LeafletReady || !LeafletModules) {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
         <Text style={{ color: colors.text }}>Loading map...</Text>
@@ -658,230 +932,3 @@ if (error) {
     </View>
   );
 }
-
-/** 
- * Stylesheet: layout, buttons, modals, search bar, banner, etc.
- * No changes were made to your styles.
- */
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  calendarButton: {
-    position: 'absolute',
-    bottom: 120,
-    left: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 6,
-    zIndex: 20,
-  },
-
-  themeToggleButton: {
-    position: 'absolute',
-    bottom: 120,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 6,
-    zIndex: 20,
-  },
-
-  feedbackButton: {
-    position: 'absolute',
-    top: 90,
-    right: 20,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 5,
-    zIndex: 21,
-  },
-
-  chatbotButton: {
-    position: 'absolute',
-    top: 150,
-    right: 20,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 5,
-    zIndex: 21,
-  },
-
-  searchContainer: {
-    position: 'absolute',
-    bottom: 40,
-    alignSelf: 'center',
-    width: '90%',
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-    borderWidth: 1,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  searchInput: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingRight: 12,
-    fontSize: 16,
-    outlineWidth: 0,
-    outlineColor: 'transparent',
-    outlineStyle: 'none',
-    boxShadow: 'none',
-  },
-
-  suggestions: {
-    maxHeight: 220,
-    marginTop: 8,
-    borderTopWidth: 1,
-    borderColor: '#eee',
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-  },
-  suggestionItem: {
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-  },
-  suggestionText: {
-    fontSize: 15,
-  },
-  noResults: {
-    padding: 8,
-  },
-
-  banner: {
-    width: "100%",
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 9999,
-  },
-  bannerText: {
-    fontWeight: "700",
-    fontSize: 16,
-    textAlign: "center",
-  },
-
-  feedbackButtonText: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 14,
-  },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    margin: 20,
-    borderRadius: 15,
-    padding: 20,
-    width: '90%',
-    maxWidth: 400,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontFamily: 'Inter_600SemiBold',
-    textAlign: 'center',
-    marginBottom: 15,
-  },
-  feedbackInput: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    fontFamily: 'Inter_400Regular',
-    textAlignVertical: 'top',
-    marginBottom: 15,
-    minHeight: 80,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  cancelButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    marginRight: 8,
-  },
-  cancelButtonText: {
-    textAlign: 'center',
-    fontSize: 15,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  submitButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    marginLeft: 8,
-  },
-  submitButtonText: {
-    textAlign: 'center',
-    fontSize: 15,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  ratingContainer: {
-    marginBottom: 15,
-  },
-  ratingLabel: {
-    fontSize: 16,
-    fontFamily: 'Inter_600SemiBold',
-    marginBottom: 8,
-  },
-  starsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  starButton: {
-    padding: 5,
-  },
-  star: {
-    fontSize: 30,
-  },
-  starFilled: {},
-  submitButtonDisabled: {},
-  submitButtonTextDisabled: {
-    color: '#999',
-  },
-});
