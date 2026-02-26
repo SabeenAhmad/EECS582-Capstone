@@ -7,8 +7,8 @@
  * 
  * Programmer: Tanusakaray
  * Date Created: February 13, 2026
- * Date Revised: February 23, 2026
- * Revision Description: AI prompt suggestions and enter key functionality
+ * Date Revised: February 25, 2026
+ * Revision Description: using firebase data now and openai cloud function 
  * 
  * Preconditions:
  * - OpenAI API key must be configured
@@ -54,10 +54,9 @@ import {
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from './context/ThemeContext';
-import lots from '../src/data/mockParking';   
+import { getLots } from '../src/firebase/parkingReads';
 
-// OpenAI API key configuration - replace with actual key from https://platform.openai.com/api-keys
-const OPENAI_API_KEY = 'your-openai-api-key-here';
+// No API key needed in frontend - it's stored securely in Firebase Cloud Functions
 
 /**
  * Main ChatBot functional component
@@ -75,6 +74,7 @@ export default function ChatBot() {
   ]);
   const [inputText, setInputText] = useState(''); // Current user input
   const [isLoading, setIsLoading] = useState(false); // API request loading state
+  const [lots, setLots] = useState([]); // Firebase parking lots data
   const scrollViewRef = useRef(); // Reference for auto-scrolling chat
   const inputRef = useRef(); // Reference for text input
   const sendButtonRef = useRef(); // Reference for send button
@@ -123,6 +123,22 @@ export default function ChatBot() {
     scrollToBottom();
   }, [messages]);
 
+  // Load parking lots from Firebase on mount
+  useEffect(() => {
+    const loadLots = async () => {
+      try {
+        console.log('Chatbot: Loading parking lots from Firebase...');
+        const firebaseLots = await getLots();
+        console.log('Chatbot: Loaded', firebaseLots.length, 'lots from Firebase:', firebaseLots);
+        setLots(firebaseLots);
+      } catch (error) {
+        console.error('Chatbot: Error loading parking lots from Firebase:', error);
+        // Keep lots as empty array if Firebase fails
+      }
+    };
+    loadLots();
+  }, []);
+
   // Add keyboard event listener for web
   useEffect(() => {
     if (Platform.OS === 'web') {
@@ -160,19 +176,37 @@ export default function ChatBot() {
 
   /**
    * Generates parking context data for AI prompt
-   * Returns current availability and historical patterns
+   * Returns current availability and historical patterns from Firebase
    */
   const generateParkingContext = () => {
-    // Current real-time availability data
+    if (lots.length === 0) {
+      return {
+        currentData: 'Loading parking data...',
+        historicalPatterns: 'Loading historical data...',
+      };
+    }
+
+    // Current real-time availability data from Firebase
     const currentData = lots.map(lot => {
-      const latest = lot.dataPoints[lot.dataPoints.length - 1];
-      const available = lot.total - latest.occupied;
-      return `${lot.name}: ${available}/${lot.total} spots available (${lot.permit} permit required)`;
+      const available = lot.capacity - lot.count_now;
+      const permitInfo = lot.permit ? ` (${lot.permit} permit required)` : '';
+      return `${lot.name}: ${available}/${lot.capacity} spots available${permitInfo}`;
     }).join('\n');
     
-    // Historical patterns for time-based estimates
+    // Historical patterns from Firebase averageByHour data
     const historicalPatterns = lots.map(lot => {
-      const patterns = lot.dataPoints.map(dp => `${dp.time}: ${lot.total - dp.occupied} available`).join(', ');
+      if (!lot.averageByHour || Object.keys(lot.averageByHour).length === 0) {
+        return `${lot.name}: No historical data available`;
+      }
+      
+      const patterns = Object.entries(lot.averageByHour)
+        .sort(([hourA], [hourB]) => parseInt(hourA) - parseInt(hourB))
+        .map(([hour, avgOccupied]) => {
+          const avgAvailable = lot.capacity - avgOccupied;
+          return `${hour}:00 - ${Math.round(avgAvailable)} available`;
+        })
+        .join(', ');
+      
       return `${lot.name} historical pattern: ${patterns}`;
     }).join('\n');
     
@@ -201,11 +235,6 @@ export default function ChatBot() {
     setIsLoading(true); // Show loading indicator
 
     try {
-      // Check if API key is configured
-      if (OPENAI_API_KEY === 'your-openai-api-key-here' || !OPENAI_API_KEY) {
-        throw new Error('OpenAI API key not configured');
-      }
-
       // Generate context data for AI prompt
       const { currentData, historicalPatterns } = generateParkingContext();
       
@@ -229,22 +258,15 @@ GUIDELINES:
 
 Provide a helpful, concise response.`;
 
-      // Make API request to OpenAI
-      console.log('Sending request to OpenAI...');
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      // Make API request to OpenAI via Firebase Cloud Function (keeps API key secure)
+      console.log('Sending request to chatbot function...');
+      const response = await fetch('https://us-central1-parking-capstone-9778c.cloudfunctions.net/chatbot', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
         },
         body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
-          messages: [{
-            role: 'user',
-            content: prompt
-          }],
-          max_tokens: 300,
-          temperature: 0.7,
+          prompt: prompt,
         }),
       });
 
@@ -253,23 +275,23 @@ Provide a helpful, concise response.`;
       // Handle API errors
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('OpenAI API Error:', response.status, errorData);
-        throw new Error(`OpenAI API Error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+        console.error('Chatbot API Error:', response.status, errorData);
+        throw new Error(`Chatbot API Error: ${response.status} - ${errorData.error || 'Unknown error'}`);
       }
 
       // Process successful API response
       const data = await response.json();
       
-      if (data.choices && data.choices[0]) {
+      if (data.ok && data.response) {
         const botResponse = {
           id: Date.now() + 1,
-          text: data.choices[0].message.content,
+          text: data.response,
           isBot: true,
           timestamp: new Date(),
         };
         setMessages(prev => [...prev, botResponse]);
       } else {
-        throw new Error('Invalid response from OpenAI');
+        throw new Error('Invalid response from chatbot');
       }
     } catch (error) {
       // Log error details for debugging
@@ -289,29 +311,28 @@ Provide a helpful, concise response.`;
       
       // Handle specific lot inquiries
       if (lowerInput.includes('allen') || lowerInput.includes('fieldhouse')) {
-        const allen = lots.find(lot => lot.name.includes('Allen'));
+        const allen = lots.find(lot => lot.name.toLowerCase().includes('allen'));
         if (allen) {
-          const latest = allen.dataPoints[allen.dataPoints.length - 1];
-          const available = allen.total - latest.occupied;
-          fallbackText += `Allen Fieldhouse Lot: ${available}/${allen.total} spots available (${allen.permit} permit required)`;
+          const available = allen.capacity - allen.count_now;
+          const permitInfo = allen.permit ? ` (${allen.permit} permit required)` : '';
+          fallbackText += `${allen.name}: ${available}/${allen.capacity} spots available${permitInfo}`;
         }
       } else if (lowerInput.includes('mississippi') || lowerInput.includes('garage')) {
-        const garage = lots.find(lot => lot.name.includes('Mississippi'));
+        const garage = lots.find(lot => lot.name.toLowerCase().includes('mississippi') || lot.name.toLowerCase().includes('garage'));
         if (garage) {
-          const latest = garage.dataPoints[garage.dataPoints.length - 1];
-          const available = garage.total - latest.occupied;
-          fallbackText += `Mississippi Street Garage: ${available}/${garage.total} spots available (${garage.permit} permit required)`;
+          const available = garage.capacity - garage.count_now;
+          const permitInfo = garage.permit ? ` (${garage.permit} permit required)` : '';
+          fallbackText += `${garage.name}: ${available}/${garage.capacity} spots available${permitInfo}`;
         }
       } else if (lowerInput.includes('most') || lowerInput.includes('best') || lowerInput.includes('available')) {
         // Show lots with most availability
         const lotAvailability = lots.map(lot => {
-          const latest = lot.dataPoints[lot.dataPoints.length - 1];
-          const available = lot.total - latest.occupied;
-          return { name: lot.name, available, total: lot.total, permit: lot.permit };
+          const available = lot.capacity - lot.count_now;
+          return { name: lot.name, available, capacity: lot.capacity, permit: lot.permit || 'N/A' };
         }).sort((a, b) => b.available - a.available);
         
         fallbackText += `Lots with most availability:\n${lotAvailability.slice(0, 3).map(lot => 
-          `• ${lot.name}: ${lot.available}/${lot.total} spots (${lot.permit} permit)`
+          `• ${lot.name}: ${lot.available}/${lot.capacity} spots (${lot.permit} permit)`
         ).join('\n')}`;
       } else {
         // Default: show all current availability

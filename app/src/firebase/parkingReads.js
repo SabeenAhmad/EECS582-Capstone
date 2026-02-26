@@ -35,6 +35,7 @@ export async function getLots() {
         averageByHour: lot?.historicalData?.averageByHour || {},
         count_now: status.count_now,
         last_updated: status.last_updated,
+        permit: lot.permit || "Garage",
       };
     })
   );

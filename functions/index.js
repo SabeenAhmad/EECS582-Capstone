@@ -22,7 +22,7 @@
  * Programmer: Samantha Adorno
  * Created: 2026-02-9
  * Revision: 2026-02-15 (deployed coud function and move writing logic from server.js to here)
- * Revision: 2026-02-18 (added Req 9 cooldown + Req 10 schema enforcement)
+ * Revision: 2026-02-25 (added openai proxy)
  *
  * Preconditions:
  *   - Firebase project initialized and Firestore enabled
@@ -50,6 +50,10 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const crypto = require("crypto");
+const { defineSecret } = require('firebase-functions/params');
+
+// Define the OpenAI API key as a secret
+const openaiApiKey = defineSecret('OPENAI_API_KEY');
 
 // ----------- Firebase initialization -----------
 admin.initializeApp();
@@ -292,5 +296,90 @@ exports.eventExit = functions.https.onRequest(async (req, res) => {
     return res.status(201).json({ ok: true, ...result });
   } catch (e) {
     return res.status(e.status || 500).json({ ok: false, error: e.message || String(e) });
+  }
+});
+
+
+// ----------- Chatbot OpenAI Proxy (keeps API key secure) -----------
+
+/**
+ * POST /chatbot
+ * 
+ * Proxies OpenAI requests to keep API key secure on server
+ * 
+ * Body: { prompt: string, parkingData: object }
+ * Returns: { ok: true, response: string } or { ok: false, error: string }
+ */
+exports.chatbot = functions.https.onRequest(
+  { secrets: [openaiApiKey] },
+  async (req, res) => {
+  // Enable CORS for web app
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).send('');
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ ok: false, error: 'Method not allowed' });
+  }
+
+  try {
+    const { prompt } = req.body;
+
+    if (!prompt || typeof prompt !== 'string') {
+      return res.status(400).json({ ok: false, error: 'prompt is required (string)' });
+    }
+
+    // Get OpenAI API key from secret
+    const OPENAI_API_KEY = openaiApiKey.value();
+    if (!OPENAI_API_KEY) {
+      console.error('OpenAI API key not found in secrets');
+      return res.status(500).json({ ok: false, error: 'OpenAI API key not configured' });
+    }
+
+    console.log('OpenAI API key found, making request...');
+
+    // Call OpenAI API
+    const fetch = (await import('node-fetch')).default;
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 300,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('OpenAI API Error:', response.status, errorData);
+      return res.status(response.status).json({ 
+        ok: false, 
+        error: errorData.error?.message || 'OpenAI API error' 
+      });
+    }
+
+    const data = await response.json();
+    
+    if (data.choices && data.choices[0]) {
+      return res.status(200).json({ 
+        ok: true, 
+        response: data.choices[0].message.content 
+      });
+    }
+
+    return res.status(500).json({ ok: false, error: 'Invalid OpenAI response' });
+
+  } catch (error) {
+    console.error('Chatbot function error:', error);
+    return res.status(500).json({ ok: false, error: error.message || 'Internal server error' });
   }
 });
