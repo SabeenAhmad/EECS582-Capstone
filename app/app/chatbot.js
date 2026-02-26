@@ -7,8 +7,8 @@
  * 
  * Programmer: Tanusakaray
  * Date Created: February 13, 2026
- * Date Revised: February 23, 2026
- * Revision Description: AI prompt suggestions and enter key functionality
+ * Date Revised: February 25, 2026
+ * Revision Description: using firebase data now and openai cloud function 
  * 
  * Preconditions:
  * - OpenAI API key must be configured
