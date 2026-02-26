@@ -22,7 +22,7 @@
  * Programmer: Samantha Adorno
  * Created: 2026-02-9
  * Revision: 2026-02-15 (deployed coud function and move writing logic from server.js to here)
- * Revision: 2026-02-18 (added Req 9 cooldown + Req 10 schema enforcement)
+ * Revision: 2026-02-25 (added openai proxy)
  *
  * Preconditions:
  *   - Firebase project initialized and Firestore enabled
