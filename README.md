@@ -1,4 +1,3 @@
-WIP README
 # Parking App
 
 This app displays parking lot availability, stats, and special event alerts for KU campus. It is built with React Native and Expo.
