@@ -167,35 +167,22 @@ async function recordLotEvent({ lotId, sensorId, eventType }) {
   let computedNext = null; //for historical averages purposes
 
   await db.runTransaction(async (t) => {
-    const lotSnap = await t.get(lotRef);
-    if (!lotSnap.exists) {
-      httpError(404, `Unknown lotId: ${lotId}`);
-    }
+  const lotSnap = await t.get(lotRef);
+  if (!lotSnap.exists) {
+    httpError(404, `Unknown lotId: ${lotId}`);
+  }
 
-    // Req 9: cooldown check
-    const cdSnap = await t.get(cooldownRef);
-    const lastMs = cdSnap.exists ? Number(cdSnap.data().last_event_ms || 0) : 0;
+  const cdSnap = await t.get(cooldownRef);
+  const statusSnap = await t.get(statusRef);
 
-    if (Number.isFinite(lastMs) && nowMs - lastMs < COOLDOWN_MS) {
-      deduped = true;
+  const lastMs = cdSnap.exists ? Number(cdSnap.data().last_event_ms || 0) : 0;
+  const lot = lotSnap.data() || {};
+  const cap = typeof lot.capacity === "number" ? lot.capacity : null;
+  const current = statusSnap.exists ? (statusSnap.data().count_now || 0) : 0;
 
-      // If you want "one per window" strictly from first event, comment this out.
-      t.set(
-        cooldownRef,
-        {
-          last_event_ms: nowMs,
-          last_event_type: eventType,
-          last_sensor_id: sensorId,
-          last_updated: admin.firestore.FieldValue.serverTimestamp(),
-          cooldown_ms: COOLDOWN_MS,
-        },
-        { merge: true }
-      );
+  if (Number.isFinite(lastMs) && nowMs - lastMs < COOLDOWN_MS) {
+    deduped = true;
 
-      return; // do NOT create event or modify occupancy
-    }
-
-    // Passed cooldown -> record it
     t.set(
       cooldownRef,
       {
@@ -208,43 +195,49 @@ async function recordLotEvent({ lotId, sensorId, eventType }) {
       { merge: true }
     );
 
-    const lot = lotSnap.data() || {};
-    const cap = typeof lot.capacity === "number" ? lot.capacity : null;
+    return;
+  }
 
-    const statusSnap = await t.get(statusRef);
-    const current = statusSnap.exists ? (statusSnap.data().count_now || 0) : 0;
+  const delta = eventType === "ENTRY" ? 1 : -1;
+  let next = current + delta;
 
-    const delta = eventType === "ENTRY" ? 1 : -1;
-    let next = current + delta;
+  if (next < 0) next = 0;
+  if (cap !== null && next > cap) next = cap;
 
-    // Req 21: enforce occupancy bounds
-    if (next < 0) next = 0;
-    if (cap !== null && next > cap) next = cap;
+  computedNext = next;
 
-    computedNext = next;
+  t.set(
+    cooldownRef,
+    {
+      last_event_ms: nowMs,
+      last_event_type: eventType,
+      last_sensor_id: sensorId,
+      last_updated: admin.firestore.FieldValue.serverTimestamp(),
+      cooldown_ms: COOLDOWN_MS,
+    },
+    { merge: true }
+  );
 
-    // Req 17/18/14: immutable event record with server timestamp
-    t.create(eventRef, {
-      id,
-      lotId,
-      sensorId,
-      eventType,
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-      occupancy_before: current,
-      occupancy_after: next,
-    });
+  t.create(eventRef, {
+    id,
+    lotId,
+    sensorId,
+    eventType,
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    occupancy_before: current,
+    occupancy_after: next,
+  });
 
-    // Req 19/14: update occupancy with server timestamp
-    t.set(
-      statusRef,
-      {
-        count_now: next,
-        last_updated: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
+  t.set(
+    statusRef,
+    {
+      count_now: next,
+      last_updated: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
 
-    t.set(
+  t.set(
     lotRef,
     {
       currentOccupancy: next,
@@ -252,8 +245,7 @@ async function recordLotEvent({ lotId, sensorId, eventType }) {
     },
     { merge: true }
   );
-  });
-
+});
 
 
   // Req 9: communicate dedupe result clearly
