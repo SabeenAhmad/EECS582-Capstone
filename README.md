@@ -206,6 +206,7 @@ The system uses a modular architecture separating the frontend, backend, and sen
 ![Architecture Diagram](Documentation/Picture3.png)
 
 *Figure 3. High-level architecture of the KU Parking App including the frontend, Firebase backend, and LiDAR sensor system.*
+
 ---
 
 ## Technology Stack
@@ -220,7 +221,8 @@ Leaflet
 ### Backend
 
 Firebase Firestore  
-Firebase Cloud Functions  
+Firebase Cloud Functions
+Firebase Cloud Scheduling
 Node.js  
 
 ### Hardware
