@@ -36,12 +36,6 @@ The system follows a client–server architecture with cloud-based backend servi
 
 Firestore enables real-time data synchronization so updates are automatically pushed to all connected clients.
 
-### Architecture Diagram
-
-Insert system architecture diagram here.
-
-![Architecture Diagram](docs/architecture-diagram.png)
-
 ---
 
 ## System Components
