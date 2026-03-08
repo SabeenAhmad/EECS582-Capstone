@@ -185,8 +185,6 @@ The system uses a modular architecture separating the frontend, backend, and sen
 
 ## UML Diagrams
 
-Insert UML diagrams here.
-
 ### Use Case Diagram
 
 ![Use Case Diagram](Documentation/Picture1.png)
