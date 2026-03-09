@@ -6,13 +6,13 @@
  * Events are color-coded both by type (left strip) and impact level (badge).
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFonts, Poppins_600SemiBold } from '@expo-google-fonts/poppins';
 import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 
-import { parkingEvents } from '../src/data/parkingEvents';
+import { fetchKuParkingEvents } from '../src/data/kuEvents';
 import { useTheme } from './context/ThemeContext';
 
 // ----------------------------------------------------
@@ -121,6 +121,8 @@ export default function ParkingCalendarScreen() {
 
   /** Currently selected day (YYYY-MM-DD) */
   const [selectedDate, setSelectedDate] = useState(toISO(today));
+  // Loaded from kuEvents endpoint (with local fallback in fetchKuParkingEvents).
+  const [events, setEvents] = useState([]);
 
   // ----------------------------------------------------
   // Preprocessing event data for fast lookup
@@ -132,11 +134,26 @@ export default function ParkingCalendarScreen() {
    */
   const eventsByDate = useMemo(() => {
     const map = {};
-    parkingEvents.forEach((ev) => {
+    events.forEach((ev) => {
       if (!map[ev.date]) map[ev.date] = [];
       map[ev.date].push(ev);
     });
     return map;
+  }, [events]);
+
+  useEffect(() => {
+    let alive = true;
+
+    const loadEvents = async () => {
+      // Shared loader normalizes backend payload to ParkingEvent shape.
+      const kuEvents = await fetchKuParkingEvents();
+      if (alive) setEvents(Array.isArray(kuEvents) ? kuEvents : []);
+    };
+
+    loadEvents();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   // ----------------------------------------------------

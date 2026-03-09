@@ -51,7 +51,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import { parkingEvents } from "../data/parkingEvents";
+import { fetchKuParkingEvents } from "../data/kuEvents";
 import { useParkingLots } from '../firebase/hooks'; // adjust path if needed
 import {
   ActivityIndicator,
@@ -487,28 +487,39 @@ function AuthedHomeScreen() {
 
   /**
    * Builds the "special event" banner based on today's date.
-   * Pulls events from parkingEvents file.
+   * Pulls events from KU feed (with local fallback).
    */
   useEffect(() => {
-    const today = new Date().toLocaleDateString("en-CA");
-    const todayEvents = parkingEvents.filter(e => e.date === today);
+    let alive = true;
 
-    if (todayEvents.length === 0) {
-      setSpecialEventMessage("");
-      return;
-    }
+    const loadTodayEvents = async () => {
+      const today = new Date().toLocaleDateString("en-CA");
+      // Reuse the same event source as calendar so banner + calendar stay consistent.
+      const allEvents = await fetchKuParkingEvents();
+      // Banner intentionally only surfaces high-priority events.
+      const todayEvents = allEvents.filter(
+        (e) => e.date === today && e.impactLevel === "High"
+      );
 
-    const builtMessage = todayEvents
-      .map(event => {
-        const emoji =
-          event.impactLevel === "High" ? "🚨" :
-          event.impactLevel === "Medium" ? "⚠️" : "ℹ️";
+      if (todayEvents.length === 0) {
+        if (alive) setSpecialEventMessage("");
+        return;
+      }
 
-        return `${emoji} ${event.title} — ${event.time}`;
-      })
-      .join("\n");
+      const builtMessage = todayEvents
+        .map((event) => {
+          const emoji = "[HIGH]";
+          return `${emoji} ${event.title} - ${event.time}`;
+        })
+        .join("\n");
 
-    setSpecialEventMessage(builtMessage);
+      if (alive) setSpecialEventMessage(builtMessage);
+    };
+
+    loadTodayEvents();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   /**
@@ -932,3 +943,4 @@ if (error) {
     </View>
   );
 }
+
