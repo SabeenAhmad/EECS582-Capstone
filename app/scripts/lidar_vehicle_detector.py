@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import random
 import time
+from collections import deque
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Protocol
@@ -116,11 +117,18 @@ class MockLidarLiteV3:
 class DetectorConfig:
     sample_interval_s: float = 0.05
     calibration_samples: int = 30
+    filter_window_size: int = 5
     min_drop_from_baseline_cm: float = 60.0
     enter_consecutive_hits: int = 3
-    exit_consecutive_misses: int = 3
-    min_presence_time_s: float = 0.20
-    cooldown_s: float = 0.75
+    exit_consecutive_misses: int = 2
+    min_presence_time_s: float = 0.25
+    max_presence_time_s: float = 15.0
+    min_vehicle_signature: float = 90.0
+    min_vehicle_peak_drop_cm: float = 85.0
+    pedestrian_max_presence_s: float = 1.2
+    pedestrian_max_peak_drop_cm: float = 75.0
+    min_inter_event_gap_s: float = 0.12
+    stalled_vehicle_warning_s: float = 4.0
 
 
 class VehiclePassDetector:
@@ -135,10 +143,13 @@ class VehiclePassDetector:
         self.sensor = sensor
         self.config = config
         self.baseline_cm: Optional[float] = None
+        self.recent_distances: deque[float] = deque(maxlen=config.filter_window_size)
         self.vehicle_present = False
         self.enter_hits = 0
         self.exit_misses = 0
         self.present_since: Optional[float] = None
+        self.peak_drop_cm = 0.0
+        self.blocked_warning_emitted = False
         self.last_count_time = 0.0
         self.total_passes = 0
 
@@ -152,6 +163,12 @@ class VehiclePassDetector:
         self.baseline_cm = readings[len(readings) // 2]
         return self.baseline_cm
 
+    def _filtered_distance_cm(self) -> float:
+        raw = self.sensor.read_distance_cm()
+        self.recent_distances.append(raw)
+        sorted_window = sorted(self.recent_distances)
+        return sorted_window[len(sorted_window) // 2]
+
     def _is_vehicle_present(self, distance_cm: float) -> bool:
         if self.baseline_cm is None:
             raise RuntimeError("Detector must be calibrated before use.")
@@ -161,9 +178,10 @@ class VehiclePassDetector:
         """
         Poll once and return an event dict when a vehicle pass is confirmed.
         """
-        distance_cm = self.sensor.read_distance_cm()
+        distance_cm = self._filtered_distance_cm()
         now = time.monotonic()
         present_now = self._is_vehicle_present(distance_cm)
+        drop_cm = (self.baseline_cm - distance_cm) if self.baseline_cm else 0.0
 
         if not self.vehicle_present:
             if present_now:
@@ -171,40 +189,78 @@ class VehiclePassDetector:
                 if self.enter_hits >= self.config.enter_consecutive_hits:
                     self.vehicle_present = True
                     self.present_since = now
+                    self.peak_drop_cm = max(0.0, drop_cm)
                     self.exit_misses = 0
                     self.enter_hits = 0
+                    self.blocked_warning_emitted = False
             else:
                 self.enter_hits = 0
             return None
 
         # Vehicle is currently marked present.
         if present_now:
+            self.peak_drop_cm = max(self.peak_drop_cm, drop_cm)
             self.exit_misses = 0
+            dwell = (now - self.present_since) if self.present_since else 0.0
+            if (
+                dwell >= self.config.stalled_vehicle_warning_s
+                and not self.blocked_warning_emitted
+            ):
+                self.blocked_warning_emitted = True
+                return {
+                    "type": "blocked_zone",
+                    "timestamp": datetime.now().isoformat(timespec="seconds"),
+                    "dwell_s": round(dwell, 3),
+                    "peak_drop_cm": round(self.peak_drop_cm, 1),
+                }
             return None
 
         self.exit_misses += 1
         if self.exit_misses < self.config.exit_consecutive_misses:
             return None
 
-        # Vehicle has left; decide whether it counts as a valid pass.
+        # Object has left; classify whether it was a vehicle pass.
         dwell = (now - self.present_since) if self.present_since else 0.0
-        cooldown_ok = (now - self.last_count_time) >= self.config.cooldown_s
+        signature = self.peak_drop_cm * dwell
+        cooldown_ok = (now - self.last_count_time) >= self.config.min_inter_event_gap_s
         self.vehicle_present = False
         self.exit_misses = 0
         self.present_since = None
 
-        if dwell >= self.config.min_presence_time_s and cooldown_ok:
+        is_pedestrian_like = (
+            dwell <= self.config.pedestrian_max_presence_s
+            and self.peak_drop_cm <= self.config.pedestrian_max_peak_drop_cm
+        )
+        is_vehicle_like = (
+            dwell >= self.config.min_presence_time_s
+            and dwell <= self.config.max_presence_time_s
+            and self.peak_drop_cm >= self.config.min_vehicle_peak_drop_cm
+            and signature >= self.config.min_vehicle_signature
+            and not is_pedestrian_like
+        )
+
+        event_type = "ignored_non_vehicle"
+        if dwell > self.config.max_presence_time_s:
+            event_type = "ignored_too_long"
+        elif is_pedestrian_like:
+            event_type = "ignored_pedestrian_like"
+        elif is_vehicle_like and cooldown_ok:
             self.total_passes += 1
             self.last_count_time = now
-            return {
-                "type": "vehicle_pass",
-                "count": self.total_passes,
-                "distance_cm": round(distance_cm, 1),
-                "timestamp": datetime.now().isoformat(timespec="seconds"),
-                "dwell_s": round(dwell, 3),
-                "baseline_cm": round(self.baseline_cm or 0.0, 1),
-            }
-        return None
+            event_type = "vehicle_pass"
+
+        event = {
+            "type": event_type,
+            "count": self.total_passes,
+            "distance_cm": round(distance_cm, 1),
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
+            "dwell_s": round(dwell, 3),
+            "baseline_cm": round(self.baseline_cm or 0.0, 1),
+            "peak_drop_cm": round(self.peak_drop_cm, 1),
+            "signature": round(signature, 1),
+        }
+        self.peak_drop_cm = 0.0
+        return event if event["type"] == "vehicle_pass" else None
 
 
 def handle_vehicle_pass(event: dict) -> None:
@@ -215,10 +271,23 @@ def handle_vehicle_pass(event: dict) -> None:
     - log to file
     - trigger GPIO output, etc.
     """
+    sensor_label = event.get("sensor", "lidar")
     print(
-        f"[{event['timestamp']}] PASS #{event['count']} "
-        f"(dwell={event['dwell_s']}s, baseline={event['baseline_cm']}cm)"
+        f"[{event['timestamp']}] [{sensor_label}] CAR PASSED #{event['count']} "
+        f"(dwell={event['dwell_s']}s, peak_drop={event['peak_drop_cm']}cm, "
+        f"baseline={event['baseline_cm']}cm)"
     )
+
+
+def handle_detector_event(event: dict) -> None:
+    if event["type"] == "vehicle_pass":
+        handle_vehicle_pass(event)
+    elif event["type"] == "blocked_zone":
+        sensor_label = event.get("sensor", "lidar")
+        print(
+            f"[{event['timestamp']}] [{sensor_label}] WARNING: detection zone blocked "
+            f"for {event['dwell_s']}s (peak_drop={event['peak_drop_cm']}cm)"
+        )
 
 
 def parse_args() -> argparse.Namespace:
@@ -243,6 +312,35 @@ def parse_args() -> argparse.Namespace:
         default=0.05,
         help="Polling interval in seconds",
     )
+    parser.add_argument(
+        "--min-vehicle-drop-cm",
+        type=float,
+        default=85.0,
+        help="Minimum peak distance drop required to classify as vehicle",
+    )
+    parser.add_argument(
+        "--min-vehicle-signature",
+        type=float,
+        default=90.0,
+        help="Minimum (peak_drop_cm * dwell_s) required to classify as vehicle",
+    )
+    parser.add_argument(
+        "--sensor-label",
+        type=str,
+        default="lidar",
+        help="Label shown in terminal logs (example: entrance, exit)",
+    )
+    parser.add_argument(
+        "--print-readings",
+        action="store_true",
+        help="Print live distance readings to terminal for local testing",
+    )
+    parser.add_argument(
+        "--readings-every",
+        type=float,
+        default=0.25,
+        help="How often to print live readings in seconds when --print-readings is used",
+    )
     return parser.parse_args()
 
 
@@ -263,8 +361,11 @@ def main() -> None:
     config = DetectorConfig(
         sample_interval_s=args.interval,
         min_drop_from_baseline_cm=args.threshold_drop_cm,
+        min_vehicle_peak_drop_cm=args.min_vehicle_drop_cm,
+        min_vehicle_signature=args.min_vehicle_signature,
     )
     detector = VehiclePassDetector(sensor=sensor, config=config)
+    next_reading_log_at = 0.0
 
     try:
         print("Calibrating baseline... keep the detection area clear.")
@@ -274,8 +375,28 @@ def main() -> None:
 
         while True:
             event = detector.poll()
+            now = time.monotonic()
+
+            if (
+                args.print_readings
+                and detector.baseline_cm is not None
+                and detector.recent_distances
+                and now >= next_reading_log_at
+            ):
+                current_distance = sorted(detector.recent_distances)[
+                    len(detector.recent_distances) // 2
+                ]
+                drop = detector.baseline_cm - current_distance
+                presence = "PRESENT" if detector.vehicle_present else "CLEAR"
+                print(
+                    f"[{args.sensor_label}] d={current_distance:.1f}cm "
+                    f"drop={drop:.1f}cm state={presence}"
+                )
+                next_reading_log_at = now + max(0.05, args.readings_every)
+
             if event:
-                handle_vehicle_pass(event)
+                event["sensor"] = args.sensor_label
+                handle_detector_event(event)
             time.sleep(config.sample_interval_s)
     except KeyboardInterrupt:
         print("\nStopped.")
