@@ -279,6 +279,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
   },
+  dataBanner: {
+    position: "absolute",
+    top: 56,
+    left: 16,
+    right: 16,
+    zIndex: 9998,
+    backgroundColor: "#8B1E1E",
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 6,
+  },
+  dataBannerText: {
+    color: "#FFF4E8",
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+  },
 
   feedbackButtonText: {
     fontFamily: 'Inter_600SemiBold',
@@ -567,16 +590,6 @@ if (loading) { // NEW: check loading state from hook
     </View>
   );
 }
-if (error) {
-  return (
-    <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
-      <Text style={{ color: colors.text }}>Failed to load parking data.</Text>
-      <Text style={{ color: colors.text, opacity: 0.7, marginTop: 8 }}>
-        {String(error.message || error)}
-      </Text>
-    </View>
-  );
-}
   if (mapError) {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
@@ -627,6 +640,9 @@ if (error) {
 
   const popupMainColor = '#333333';
   const popupSubColor = '#777777';
+  const liveDataUnavailableMessage = error
+    ? `Real-time parking data is currently unavailable. ${String(error.message || error)}`
+    : "";
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -636,6 +652,14 @@ if (error) {
         <View style={[styles.banner, { backgroundColor: colors.bannerBackground }]}>
           <Text style={[styles.bannerText, { color: colors.bannerText }]}>
             {specialEventMessage}
+          </Text>
+        </View>
+      )}
+
+      {liveDataUnavailableMessage !== "" && (
+        <View style={styles.dataBanner}>
+          <Text style={styles.dataBannerText}>
+            {liveDataUnavailableMessage}
           </Text>
         </View>
       )}
