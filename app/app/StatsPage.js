@@ -272,6 +272,9 @@ export default function StatsPage() {
           <Text style={[styles.infoText, { color: colors.text }]}>
             {occupied}/{capacity} spots taken
           </Text>
+          <Text style={[styles.infoSubtext, { color: colors.text }]}>
+            {percentFull.toFixed(1)}% full
+          </Text>
 
           <View
             style={[
@@ -353,6 +356,12 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 15,
     fontFamily: "Inter_400Regular",
+  },
+  infoSubtext: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    marginTop: 4,
+    opacity: 0.75,
   },
   permitTag: {
     borderWidth: 1.5,
