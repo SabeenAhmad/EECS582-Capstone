@@ -290,6 +290,20 @@ def handle_detector_event(event: dict) -> None:
         )
 
 
+def print_motion_event(
+    sensor_label: str,
+    state: str,
+    distance_cm: float,
+    baseline_cm: float,
+) -> None:
+    timestamp = datetime.now().isoformat(timespec="seconds")
+    drop_cm = baseline_cm - distance_cm
+    print(
+        f"[{timestamp}] [{sensor_label}] MOTION {state} "
+        f"(distance={distance_cm:.1f}cm, drop={drop_cm:.1f}cm, baseline={baseline_cm:.1f}cm)"
+    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="LiDAR-Lite v3 vehicle pass detector")
     parser.add_argument("--mock", action="store_true", help="Use simulated sensor readings")
@@ -336,6 +350,11 @@ def parse_args() -> argparse.Namespace:
         help="Print live distance readings to terminal for local testing",
     )
     parser.add_argument(
+        "--print-motion",
+        action="store_true",
+        help="Print when motion starts and stops without changing existing vehicle-pass behavior",
+    )
+    parser.add_argument(
         "--readings-every",
         type=float,
         default=0.25,
@@ -366,6 +385,7 @@ def main() -> None:
     )
     detector = VehiclePassDetector(sensor=sensor, config=config)
     next_reading_log_at = 0.0
+    last_motion_state: Optional[bool] = None
 
     try:
         print("Calibrating baseline... keep the detection area clear.")
@@ -393,6 +413,22 @@ def main() -> None:
                     f"drop={drop:.1f}cm state={presence}"
                 )
                 next_reading_log_at = now + max(0.05, args.readings_every)
+
+            if args.print_motion and detector.baseline_cm is not None and detector.recent_distances:
+                current_distance = sorted(detector.recent_distances)[
+                    len(detector.recent_distances) // 2
+                ]
+                motion_now = detector._is_vehicle_present(current_distance)
+                if last_motion_state is None:
+                    last_motion_state = motion_now
+                elif motion_now != last_motion_state:
+                    print_motion_event(
+                        sensor_label=args.sensor_label,
+                        state="START" if motion_now else "END",
+                        distance_cm=current_distance,
+                        baseline_cm=detector.baseline_cm,
+                    )
+                    last_motion_state = motion_now
 
             if event:
                 event["sensor"] = args.sensor_label
