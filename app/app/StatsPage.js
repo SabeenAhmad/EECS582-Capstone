@@ -173,9 +173,14 @@ export default function StatsPage() {
     return (
       <View style={[styles.container, { backgroundColor: colors.background, paddingTop: 100 }]}>
         <Text style={{ color: colors.text, textAlign: "center" }}>
-          {lotError ? `Lot not found: ${lotError}` : "Lot not found"}
+          Real-time parking data is currently unavailable for this lot.
         </Text>
-
+        <Text style={{ color: colors.text, textAlign: "center", opacity: 0.7, marginTop: 8 }}>
+          Please refresh shortly to try reconnecting to the live occupancy feed.
+        </Text>
+        <Text style={{ color: colors.text, textAlign: "center", opacity: 0.7, marginTop: 8 }}>
+          {lotError ? `Details: ${lotError}` : "No live data was returned."}
+        </Text>
         <Text
           style={[
             styles.refreshButton,

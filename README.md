@@ -156,7 +156,7 @@ This design enables reliable real-time parking detection and supports future sen
 6. The Cloud Function updates the Firestore database.
 
 7. Firestore pushes updates to all connected clients in real time.
-
+![Flow Diagram](Documentation/flow.png)
 ---
 
 ## Non-Functional Requirements
