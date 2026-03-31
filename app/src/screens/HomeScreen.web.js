@@ -696,13 +696,17 @@ if (loading) { // NEW: check loading state from hook
           {/** Parking lot markers */}
           {filteredLots.map((lot) => {
   const { available, lastUpdated, total } = getLatestAvailability(lot);
+  const occupied = total - available;
+  const pctFull = total > 0 ? (occupied / total) * 100 : 0;
+  // FR25.3 – Change marker color to orange when lot is nearly full (>=80%)
+  const markerColor = pctFull >= 80 ? "#FF8C00" : "#ff3333";
 
   return (
     <CircleMarker
       key={lot.id}
       center={[lot.latitude, lot.longitude]}
       radius={10}
-      fillColor="#ff3333"
+      fillColor={markerColor}
       color="#fff"
       weight={2}
       opacity={1}
@@ -723,6 +727,13 @@ if (loading) { // NEW: check loading state from hook
           >
             {lot.displayName || lot.name || "Unnamed Lot"}
           </div>
+
+          {/* FR25.3 – Near-full warning in popup */}
+          {pctFull >= 80 && (
+            <div style={{ color: '#FF4444', fontWeight: '700', fontSize: 13, marginBottom: 4 }}>
+              ⚠️ Nearly Full
+            </div>
+          )}
 
           <div style={{ fontSize: 14, color: popupMainColor }}>
             {available}/{total} spots available
