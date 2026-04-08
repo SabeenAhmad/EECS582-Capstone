@@ -1,6 +1,7 @@
 /******************************************************************************
  * Code Artifact: functions/index.js
- *
+ * Names:
+ * Date:
  * Description:
  *   Firebase Cloud Functions (HTTPS) that handle authenticated event writes for
  *   a parking lot system. This file is the authoritative write path to Firestore

@@ -1,3 +1,8 @@
+/*
+Names: 
+Date: 
+Description: Defines a modal screen that displays simple content and provides navigation back to the home screen.
+*/
 import { Link } from 'expo-router';
 import { StyleSheet } from 'react-native';
 

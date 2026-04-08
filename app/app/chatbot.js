@@ -1,6 +1,7 @@
 /**
  * ChatBot Component
- * 
+ * Names:
+ * Date:
  * Description: A React Native chatbot interface that provides parking assistance
  * for KU campus. Integrates with OpenAI API to answer parking-related questions
  * using real-time and historical parking data.

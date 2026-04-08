@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { getLots } from "./parkingReads";
-/**
- * useParkingLots
- * Fetches lot metadata + live occupancy from GET /api/lots.
- * Supports loading + error states for UI rendering.
- */
+/*
+Name: 
+Date: , 2026
+Description: This file defines a custom React hook that retrieves parking lot data from the backend and manages loading and error states.
+*/
 export function useParkingLots() {
   const [lots, setLots] = useState([]);      // Array of lot objects
   const [loading, setLoading] = useState(true);  // True while fetching

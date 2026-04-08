@@ -1,3 +1,8 @@
+/*
+Names: 
+Date: 
+Description: Defines the explore screen UI, displaying informational sections about the app’s features and navigation using themed components.
+*/
 import { Image } from 'expo-image';
 import { Platform, StyleSheet } from 'react-native';
 

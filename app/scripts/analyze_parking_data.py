@@ -1,3 +1,9 @@
+
+"""
+Names: 
+Date: 
+Description: Fetches parking data from Firestore, analyzes hourly occupancy trends, and generates a JSON file of popular parking times for each lot.
+"""
 import firebase_admin
 from firebase_admin import credentials, firestore
 import pandas as pd

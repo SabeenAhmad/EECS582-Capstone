@@ -1,4 +1,9 @@
 // context/ThemeContext.js
+/*
+Names: 
+Date: 
+Description: Defines a theme context that manages light and dark mode settings, persists user preferences, and provides theme data to the application.
+*/
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 

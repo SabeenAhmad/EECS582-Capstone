@@ -1,3 +1,8 @@
+/*
+Names: 
+Date: 
+Description: Provides a custom React hook that listens for Firebase authentication state changes and returns the current user and loading status.
+*/
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebaseClient";

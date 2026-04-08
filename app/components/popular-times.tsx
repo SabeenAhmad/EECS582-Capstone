@@ -1,3 +1,8 @@
+/*
+Names: 
+Date: 
+Description: Displays a bar chart of parking lot occupancy trends throughout the day, using hourly data and highlighting current usage.
+*/
 import React from 'react';
 import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 

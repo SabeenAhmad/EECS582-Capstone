@@ -1,3 +1,8 @@
+/*
+Names: 
+Date: 
+Description: Defines the layout for the tabs section by rendering the main home screen component.
+*/
 // app/(tabs)/_layout.tsx
 // @ts-ignore
 import HomeScreen from '../../src/screens/HomeScreen';

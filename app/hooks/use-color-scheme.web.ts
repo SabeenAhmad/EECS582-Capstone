@@ -1,3 +1,8 @@
+/*
+Names: 
+Date: 
+Description: Provides a custom hook that determines the current color scheme, ensuring correct behavior for both web and native environments.
+*/
 import { useEffect, useState } from 'react';
 import { useColorScheme as useRNColorScheme } from 'react-native';
 

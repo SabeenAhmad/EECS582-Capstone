@@ -1,6 +1,8 @@
 /**
  * StatsPage
- *
+ * Names:
+ * Date: 
+ * 
  * Displays detailed information for a selected parking lot:
  * - Live occupancy count (via Firebase-backed GET endpoint)
  * - Occupancy percentage visualization

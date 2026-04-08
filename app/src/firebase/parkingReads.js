@@ -1,3 +1,8 @@
+/*
+Names: 
+Date: 
+Description: Handles Firestore reads for parking lot data, including retrieving all lots or a single lot with real-time occupancy status.
+*/
 import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import { db } from "./firebaseClient";
 

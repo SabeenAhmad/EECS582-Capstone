@@ -1,3 +1,8 @@
+/*
+Names: 
+Date: 
+Description: Provides command-line utilities for managing Firestore parking lot data, including seeding data, updating counts, recording events, and modifying lot metadata.
+*/
 const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');

@@ -1,6 +1,7 @@
 /**
  * ParkingCalendarScreen
- *
+ * Names:
+ * Date:
  * This screen displays a full monthly calendar showing KU parking-impact events.
  * Users can browse months, switch months, select a date, and view events affecting parking.
  * Events are color-coded both by type (left strip) and impact level (badge).
