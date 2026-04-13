@@ -9,8 +9,10 @@
  * - Permit badge
  * - Last updated timestamp
  * - Hourly average occupancy chart
+ * - Near-full alert banner when occupancy exceeds threshold (Req 25)
  *
  * Requirements:
+ *  - Req 25: Near-full alert when occupancy exceeds configurable threshold
  *  - Req 36: Website fetches occupancy via Firebase GET endpoint (no mock data)
  *  - Real-time updates supported via manual refresh (1–3s typical latency)
  *
@@ -18,6 +20,12 @@
  *  - All occupancy values come from Firestore through the Express API
  *  - averageByHour is derived from Firestore historical data
  */
+
+/**
+ * FR25.1 – Configurable occupancy threshold for near-full alert.
+ * Change this value to adjust when the alert triggers (e.g., 0.9 for 90%).
+ */
+const NEAR_FULL_THRESHOLD = 0.80; // 80% occupancy triggers the alert
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -248,6 +256,20 @@ export default function StatsPage() {
         </Text>
       </View>
 
+      {/**
+       * FR25.2 / FR25.3 / FR25.4 / FR25.5 – Near-full alert banner.
+       * Shows when occupancy exceeds NEAR_FULL_THRESHOLD.
+       * Automatically removed when occupancy drops below threshold.
+       * Updates in real-time whenever lot data is refreshed.
+       */}
+      {percentFull >= NEAR_FULL_THRESHOLD * 100 && (
+        <View style={styles.nearFullBanner}>
+          <Text style={styles.nearFullBannerText}>
+            ⚠️ This lot is nearly full ({percentFull.toFixed(0)}% occupied)
+          </Text>
+        </View>
+      )}
+
       {/* Lot Title */}
       <View style={styles.titleContainer}>
         <Text style={styles.title}>
@@ -445,5 +467,20 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontFamily: "Poppins_600SemiBold",
     marginBottom: 15,
+  },
+  // FR25.3 – Near-full alert banner styles
+  nearFullBanner: {
+    backgroundColor: "#FF4444",
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    alignItems: "center",
+  },
+  nearFullBannerText: {
+    color: "#FFFFFF",
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 15,
+    textAlign: "center",
   },
 });
