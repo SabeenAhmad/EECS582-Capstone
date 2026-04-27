@@ -1,6 +1,5 @@
 /*
-Names: 
-Date: 
+Names: Anna Ross
 Description: Defines the layout for the tabs section by rendering the main home screen component.
 */
 // app/(tabs)/_layout.tsx
