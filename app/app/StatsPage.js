@@ -1,7 +1,6 @@
 /**
  * StatsPage
- * Names:
- * Date: 
+ * Names: Anna Ross, Sabeen Ahmad, Sriya Annem, Tanushri Sakray
  * 
  * Displays detailed information for a selected parking lot:
  * - Live occupancy count (via Firebase-backed GET endpoint)
