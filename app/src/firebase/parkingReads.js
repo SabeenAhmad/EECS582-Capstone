@@ -11,8 +11,8 @@
  * - Req 35: Fetch occupancy data from Firestore instead of mock data
  *
  * Programmer: Samantha Adorno
- * Created: April 26, 2026
- * Revision: 2026-04-26 (Added readStatus helper for nested _meta retrieval)
+ * Created: March 2, 2026
+ * Revision: 2026-04-26 (Added prologue)
  *
  * Preconditions:
  * - Firestore 'lots' collection exists with valid sub-collections
