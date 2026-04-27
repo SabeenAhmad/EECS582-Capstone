@@ -1,6 +1,5 @@
 /*
-Names: 
-Date: 
+Names: Anna Ross, Tanushri Sakaray
 Description: Defines the explore screen UI, displaying informational sections about the app’s features and navigation using themed components.
 */
 import { Image } from 'expo-image';
