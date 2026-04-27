@@ -1,6 +1,7 @@
 /*
-Names: 
-Date: 
+Names: Samantha Adorno
+Date: March 1, 2026
+Revision: April, 2026
 Description: Provides command-line utilities for managing Firestore parking lot data, including seeding data, updating counts, recording events, and modifying lot metadata.
 */
 const admin = require('firebase-admin');
