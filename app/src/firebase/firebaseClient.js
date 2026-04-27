@@ -13,6 +13,7 @@
  * Programmer: Samantha Adorno
  * Created: 2026-02-10
  * Revision: 2026-03-05 (Added auth persistence and debug logging)
+ * Revision: 2026-04-26 (Added prologue)
  *
  * Preconditions:
  * - firebaseConfig must be properly exported from ./config.js
