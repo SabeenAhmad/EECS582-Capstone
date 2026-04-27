@@ -10,8 +10,8 @@
  * - Req 35: Fetch occupancy data from Firestore instead of mock data
  *
  * Programmer: Samantha Adorno
- * Created: April 26, 2026
- * Revision: 2026-04-26 (Cleaned up hook logic and state management)
+ * Created: March 2, 2026
+ * Revision: 2026-04-26 (Added prologue)
  *
  * Preconditions:
  * - getLots must be correctly implemented in ./parkingReads
