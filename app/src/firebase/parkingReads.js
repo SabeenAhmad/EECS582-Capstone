@@ -1,12 +1,35 @@
-/*
-Names: 
-Date: 
-Description: Handles Firestore reads for parking lot data, including retrieving all lots or a single lot with real-time occupancy status.
-*/
+/******************************************************************************
+ * Code Artifact: parkingReads.js
+ * Description:
+ * Data access layer for Firestore reads. Handles fetching individual or 
+ * collective parking lot data combined with real-time occupancy status.
+ *
+ * Implements Requirements:
+ * - Req 5 : Ensure the database has accurate parking lot information
+ * - Req 22: Retrieve real-time occupancy updates in the web app
+ * - Req 23: Display last-updated timestamp in the app
+ * - Req 35: Fetch occupancy data from Firestore instead of mock data
+ *
+ * Programmer: Samantha Adorno
+ * Created: April 26, 2026
+ * Revision: 2026-04-26 (Added readStatus helper for nested _meta retrieval)
+ *
+ * Preconditions:
+ * - Firestore 'lots' collection exists with valid sub-collections
+ *
+ * Inputs:
+ * - lotId: Unique string identifier for a parking lot
+ *
+ * Outputs:
+ * - Object or Array containing lot metadata and current_status counts
+ ******************************************************************************/
+
 import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import { db } from "./firebaseClient";
 
-// Read current status doc
+// ----------- Helpers -----------
+
+// Req 22/35: Reads the authoritative current occupancy from the _meta sub-collection
 async function readStatus(lotId) {
   const statusSnap = await getDoc(doc(db, "lots", lotId, "_meta", "current_status"));
   if (!statusSnap.exists()) {
@@ -15,11 +38,13 @@ async function readStatus(lotId) {
   const status = statusSnap.data() || {};
   return {
     count_now: status.count_now ?? 0,
-    last_updated: status.last_updated ?? null,
+    last_updated: status.last_updated ?? null, // Req 23
   };
 }
 
-// Get ALL lots + live status
+// ----------- Data Fetchers -----------
+
+// Req 5/35: Get ALL lots with live status for the map/list view
 export async function getLots() {
   const snap = await getDocs(collection(db, "lots"));
 
@@ -37,7 +62,7 @@ export async function getLots() {
         longitude: lot.longitude,
         capacity: lot.capacity ?? 0,
         description: lot.description || "",
-        averageByHour: lot?.historicalData?.averageByHour || {},
+        averageByHour: lot?.historicalData?.averageByHour || {}, // Req 7 support
         count_now: status.count_now,
         last_updated: status.last_updated,
         permit: lot.permit || "Garage",
@@ -48,7 +73,7 @@ export async function getLots() {
   return lots;
 }
 
-// Get one lot + live status
+// Req 22/35: Get details and live status for a single lot
 export async function getLot(lotId) {
   const lotSnap = await getDoc(doc(db, "lots", lotId));
   const lot = lotSnap.exists() ? (lotSnap.data() || {}) : {};
