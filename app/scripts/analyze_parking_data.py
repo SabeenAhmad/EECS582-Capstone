@@ -1,7 +1,9 @@
 
 """
-Names: 
-Date: 
+Names: Samantha Adorno
+Date: October 21, 2025
+Revision: February 23, 2026
+Revision: March 3, 2026
 Description: Fetches parking data from Firestore, analyzes hourly occupancy trends, and generates a JSON file of popular parking times for each lot.
 """
 import firebase_admin
