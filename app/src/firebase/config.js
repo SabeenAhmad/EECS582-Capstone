@@ -12,6 +12,7 @@
  * Programmer: Samantha Adorno
  * Revision: 2026-02-10 (Standardized env var naming to EXPO_PUBLIC_*)
  * Revision: 2026-02-28 (Added strict validation for required keys)
+ * Revision: 2026-04-26 (Added prologue)
  *
  * Preconditions:
  * - Environment variables must be prefixed with EXPO_PUBLIC_ for client access
