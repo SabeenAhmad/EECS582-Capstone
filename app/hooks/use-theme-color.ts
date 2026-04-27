@@ -2,8 +2,7 @@
  * Learn more about light and dark modes:
  * https://docs.expo.dev/guides/color-schemes/
 
-Names: 
-Date: 
+Names: Anna Ross, Tanushri Sakaray
 Description: Provides a helper function to retrieve theme-based colors, selecting light or dark mode values based on the current color scheme.
 */
 
