@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Names: 
-Date: 
+Names: Sabeen Ahmad
 Description: Processes LiDAR sensor data to detect vehicle entry and exit using two beams, maintains occupancy count, and sends events to the backend.
 
 lidar_counter.py
