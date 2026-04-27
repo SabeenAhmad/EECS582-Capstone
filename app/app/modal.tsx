@@ -1,6 +1,5 @@
 /*
-Names: 
-Date: 
+Names: Sriya Annem, Sabeen Ahmad, Anna Ross
 Description: Defines a modal screen that displays simple content and provides navigation back to the home screen.
 */
 import { Link } from 'expo-router';
