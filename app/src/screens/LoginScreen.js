@@ -11,7 +11,7 @@
  *
  * Programmers: Sriya Annem, Sabeen Ahmad, Anna Ross
  * Created: February 14, 2026
- * Revision: April 26, 2026 (Standardized error handling and styling)
+ * Revision: April 26, 2026 (Comments)
  *
  * Preconditions:
  * - auth and googleProvider must be initialized in firebaseClient.js
