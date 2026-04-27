@@ -1,7 +1,6 @@
 // context/ThemeContext.js
 /*
-Names: 
-Date: 
+Names: Anna Ross
 Description: Defines a theme context that manages light and dark mode settings, persists user preferences, and provides theme data to the application.
 */
 import React, { createContext, useContext, useEffect, useState } from 'react';
