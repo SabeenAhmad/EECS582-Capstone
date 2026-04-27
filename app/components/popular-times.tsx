@@ -1,6 +1,5 @@
 /*
-Names: 
-Date: 
+Names: Anna Ross, Tanushri Sakaray, Sabeen Ahmad
 Description: Displays a bar chart of parking lot occupancy trends throughout the day, using hourly data and highlighting current usage.
 */
 import React from 'react';
